@@ -68,11 +68,7 @@ l_experiment:
 l_perfect_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --check_accuracy
 
-# a. generate some stats
-l_count:
-	python3 $(DISAMBIG_PRG)/linkage/count_all_linkage.py $(LCORPUS_FILE) $(LCNNCT_FILE) $(LINKAGE_FILE)
-
-# b. generate parser structure
+# a. generate parser structure
 # first stripped labels
 l_parse_cdtb:
 	$(DISAMBIG_TOOL)/stanford-parser-full/lexparser-lang.sh Chinese 500 edu/stanford/nlp/models/lexparser/chinesePCFG.ser.gz parsed $(DISAMBIG_DATA)/cdtb.stripped.txt
@@ -80,10 +76,10 @@ l_parse_cdtb:
 l_process_cdtb_parsed:
 	python3 $(DISAMBIG_PRG)/utility/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(DISAMBIG_DATA)/cdtb.stripped.txt.parsed.500.stp --output $(TMP)/cdtb.parsed.txt
 
-# c. generate folds
+# b. generate folds
 l_make_folds:
 	python3 $(DISAMBIG_PRG)/utility/linkage/split_folds.py --folds 10 --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE) --output $(TMP)/folds.txt
 
-# d. filter vectors
+# c. filter vectors
 l_filter_vectors:
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(GGLOVE_VECTOR_FILE) --corpus_pos $(LCORPUS_POS_FILE) --output $(LVECTOR_FILE)
