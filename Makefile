@@ -3,24 +3,35 @@ TMP = /tmp
 
 ## -- data preprocessing -- ##
 
-CLUE_CORPUS=$(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
-GVOCAB_FILE=$(TMP)/vocab.txt
-GCC_FILE=$(TMP)/cc.txt
-GCCS_FILE=$(TMP)/ccs.txt
-GGLOVE_VECTOR_FILE=$(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
+CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
+GVOCAB_FILE = $(TMP)/vocab.txt
+GCC_FILE = $(TMP)/cc.txt
+GCCS_FILE = $(TMP)/ccs.txt
+GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
+NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
 
 # prepare files to create glove output
-l_glove_prep:
+d_glove_prep:
 	$(GLOVE)/vocab_count -min-count 5 -verbose 2 < $(CLUE_CORPUS) > $(GVOCAB_FILE)
 	$(GLOVE)/cooccur -memory 20 -vocab-file $(GVOCAB_FILE) -verbose 2 -window-size 15 < $(CLUE_CORPUS) > $(GCC_FILE)
 	$(GLOVE)/shuffle -memory 20 -verbose 2 < $(GCC_FILE) > $(GCCS_FILE)
 
 # create glove
-l_glove:
+d_glove:
 	$(GLOVE)/glove -save-file $(TMP)/glove.vectors -threads 24 -input-file $(GCCS_FILE) -iter 15 -x-max 10 -vector-size 400 -binary 0 -vocab-file $(GVOCAB_FILE) -verbose 2 
 	mv $(TMP)/glove.vectors.txt $(GGLOVE_VECTOR_FILE)
 
-## -- disambig experiments -- ##
+# convert cdtb to utf-8
+l_convert_cdtb_to_utf8:
+	python3 $(DISAMBIG_PRG)/utility/common/gb-to-utf8.py --input $(DISAMBIG_BIG_DATA)/raw/corpus/ --output $(DISAMBIG_BIG_DATA)/raw/corpus-utf8/
+
+# get connectives from experiments
+# cat $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt | cut -f3,4,7 > $(TMP)/ntu_cnnct.txt
+# $(NTU_CNNCT)
+c_extract_ntu_connectives:
+	python3 $(DISAMBIG_PRG)/utility/connective/select.py --corpus $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt --pairs $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt --output $(DISAMBIG_DATA)/connective/ntu_connective.txt
+
+## -- connective experiments -- ##
 
 ## -- linkage experiments -- ##
 
@@ -74,7 +85,7 @@ l_parse_cdtb:
 	$(DISAMBIG_TOOL)/stanford-parser-full/lexparser-lang.sh Chinese 500 edu/stanford/nlp/models/lexparser/chinesePCFG.ser.gz parsed $(DISAMBIG_DATA)/cdtb.stripped.txt
 # then concate labels again
 l_process_cdtb_parsed:
-	python3 $(DISAMBIG_PRG)/utility/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(DISAMBIG_DATA)/cdtb.stripped.txt.parsed.500.stp --output $(TMP)/cdtb.parsed.txt
+	python3 $(DISAMBIG_PRG)/utility/common/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(DISAMBIG_DATA)/cdtb.stripped.txt.parsed.500.stp --output $(TMP)/cdtb.parsed.txt
 
 # b. generate folds
 l_make_folds:
