@@ -1,4 +1,5 @@
 GLOVE = $(DISAMBIG_TOOL)/glove
+WORD2VEC = $(DISAMBIG_TOOL)/word2vec
 TMP = /tmp
 
 ## -- data preprocessing -- ##
@@ -36,6 +37,10 @@ c_extract_ntu_connectives:
 c_process_corpus:
 	python3 $(DISAMBIG_PRG)/utility/connective/filter.py --corpus $(CLUE_CORPUS_CNNCT) --cnnct $(NTU_CNNCT) --output $(TMP)/4300W.labeled.txt
 	cp $(TMP)/4300W.labeled.txt $(LABELED_CLUE_CORPUS)
+
+c_sent_word2vec:
+	shuf $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.labeled.txt
+	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.labeled.txt -output $(TMP)/4300W.sent.vectors.txt -cbow 0 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
 
 ## -- connective experiments -- ##
 
