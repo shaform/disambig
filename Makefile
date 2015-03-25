@@ -4,6 +4,8 @@ TMP = /tmp
 ## -- data preprocessing -- ##
 
 CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
+CLUE_CORPUS_CNNCT = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt
+LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
 GCCS_FILE = $(TMP)/ccs.txt
@@ -29,7 +31,11 @@ l_convert_cdtb_to_utf8:
 # cat $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt | cut -f3,4,7 > $(TMP)/ntu_cnnct.txt
 # $(NTU_CNNCT)
 c_extract_ntu_connectives:
-	python3 $(DISAMBIG_PRG)/utility/connective/select.py --corpus $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt --pairs $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt --output $(DISAMBIG_DATA)/connective/ntu_connective.txt
+	python3 $(DISAMBIG_PRG)/utility/connective/select.py --corpus $(CLUE_CORPUS_CNNCT) --pairs $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt --output $(NTU_CNNCT)
+
+c_process_corpus:
+	python3 $(DISAMBIG_PRG)/utility/connective/filter.py --corpus $(CLUE_CORPUS_CNNCT) --cnnct $(NTU_CNNCT) --output $(TMP)/4300W.labeled.txt
+	cp $(TMP)/4300W.labeled.txt $(LABELED_CLUE_CORPUS)
 
 ## -- connective experiments -- ##
 
