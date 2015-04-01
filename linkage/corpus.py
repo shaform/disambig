@@ -79,28 +79,39 @@ class ParseHelper(object):
         r = max(indices) + 1
         position = root.treeposition_spanning_leaves(l, r)
         node = root[position]
+
         for i in range(len(position)):
             t = root[position[:-i - 1]]
             if type(node) is str or len(t.leaves()) == len(node.leaves()):
                 node = t
             else:
                 break
-        return node
+
+        if len(node.leaves()) > len(indices):
+            return None
+        else:
+            return node
 
     @staticmethod
-    def parent_category(root, indices):
-        me = ParseHelper.self_category(root, indices)
-        return me.parent()
+    def parent_category(me):
+        if me is not None:
+            return me.parent()
+        else:
+            return None
 
     @staticmethod
-    def left_category(root, indices):
-        me = ParseHelper.self_category(root, indices)
-        return me.left_sibling()
+    def left_category(me):
+        if me is not None:
+            return me.left_sibling()
+        else:
+            return None
 
     @staticmethod
-    def right_category(root, indices):
-        me = ParseHelper.self_category(root, indices)
-        return me.right_sibling()
+    def right_category(me):
+        if me is not None:
+            return me.right_sibling()
+        else:
+            return None
 
     @staticmethod
     def label(node):

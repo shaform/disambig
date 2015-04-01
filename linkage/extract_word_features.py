@@ -123,20 +123,23 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                     # self
                     me = corpus.ParseHelper.self_category(
                         parsed, [l_index, r_index])
-                    feature_vector['self_{}'.format(me.label())] = 1
+                    sf = corpus.ParseHelper.label(me)
+                    feature_vector['self_{}'.format(sf)] = 1
 
                     # parent
-                    p = corpus.ParseHelper.label(me.parent())
+                    p = corpus.ParseHelper.label(
+                        corpus.ParseHelper.parent_category(me))
                     feature_vector['parent_{}'.format(p)] = 1
 
                     # left
-                    sb = corpus.ParseHelper.label(me.left_sibling())
+                    sb = corpus.ParseHelper.label(
+                        corpus.ParseHelper.left_category(me))
                     feature_vector['left_sb_{}'.format(sb)] = 1
 
                     # right
-                    sb = corpus.ParseHelper.label(me.right_sibling())
+                    sb = corpus.ParseHelper.label(
+                        corpus.ParseHelper.right_category(me))
                     feature_vector['right_sb_{}'.format(sb)] = 1
-                    # interaction
 
                     X.append(feature_vector)
                     cands.append(cand)

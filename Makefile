@@ -7,6 +7,8 @@ TMP = /tmp
 CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
 CLUE_CORPUS_CNNCT = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt
 LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
+CLUE_SENT_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.sent.vectors.txt
+CLUE_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.word.vectors.txt
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
 GCCS_FILE = $(TMP)/ccs.txt
@@ -28,19 +30,23 @@ d_glove:
 l_convert_cdtb_to_utf8:
 	python3 $(DISAMBIG_PRG)/utility/common/gb-to-utf8.py --input $(DISAMBIG_BIG_DATA)/raw/corpus/ --output $(DISAMBIG_BIG_DATA)/raw/corpus-utf8/
 
-# get connectives from experiments
-# cat $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt | cut -f3,4,7 > $(TMP)/ntu_cnnct.txt
-# $(NTU_CNNCT)
 c_extract_ntu_connectives:
 	python3 $(DISAMBIG_PRG)/utility/connective/select.py --corpus $(CLUE_CORPUS_CNNCT) --pairs $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt --output $(NTU_CNNCT)
 
+# label sentences for connective experiments
 c_process_corpus:
 	python3 $(DISAMBIG_PRG)/utility/connective/filter.py --corpus $(CLUE_CORPUS_CNNCT) --cnnct $(NTU_CNNCT) --output $(TMP)/4300W.labeled.txt
 	cp $(TMP)/4300W.labeled.txt $(LABELED_CLUE_CORPUS)
 
+# construct sentence & word vectors for clueweb
 c_sent_word2vec:
 	shuf $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.labeled.txt
 	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.labeled.txt -output $(TMP)/4300W.sent.vectors.txt -cbow 0 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
+
+# extract desired vectors to files
+c_sent_extract:
+	grep '^@@SSENT' $(TMP)/4300W.sent.vectors.txt | sort > $(CLUE_SENT_VECTOR)
+	cat $(TMP)/4300W.sent.vectors.txt | sed '1d' | grep -v '^@@' > $(CLUE_WORD_VECTOR)
 
 ## -- connective experiments -- ##
 
@@ -52,13 +58,12 @@ LCORPUS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.txt
 LCORPUS_POS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.pos.txt
 LCORPUS_PARSE_FILE = $(DISAMBIG_DATA)/parsed/cdtb.parsed.txt
 LVECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_vectors.txt
+LW2V_VECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_w2v_vectors.txt
 LWORD_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_features.txt
 LWORD_PROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_probs.txt
 LWORD_AMBIG_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_ambig.txt
 LLINKAGE_PROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_probs.txt
-LLINKAGE_PPROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_probs.txt
 LLINKAGE_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_features.txt
-LLINKAGE_PFEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_features.txt
 LFOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
 L10FOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
 
@@ -72,23 +77,15 @@ l_train_word_probs:
 
 # 3. extract features for each linkage
 l_extract_linkage_features:
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LVECTOR_FILE) --word_probs $(LWORD_PROB_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) #--check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LVECTOR_FILE) --word_probs $(LWORD_PROB_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) #--check_accuracy
 
 # 4. train linkage probabilities
 l_train_linkage_probs:
 	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_PROB_FILE) --check_accuracy
 
-# 4.5. train perfect linkage probabilities
-l_train_perfect_linkage_probs:
-	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_PPROB_FILE) --check_accuracy
-
 # 5. run the experiments
 l_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --check_accuracy
-
-# 5.5 run the perfect experiments
-l_perfect_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --check_accuracy
 
 # a. generate parser structure
 # first stripped labels
@@ -105,3 +102,6 @@ l_make_folds:
 # c. filter vectors
 l_filter_vectors:
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(GGLOVE_VECTOR_FILE) --corpus_pos $(LCORPUS_POS_FILE) --output $(LVECTOR_FILE)
+# c.5 filter word2vec vectors
+l_filter_w2v_vectors:
+	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LW2V_VECTOR_FILE)

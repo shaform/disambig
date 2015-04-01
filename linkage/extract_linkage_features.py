@@ -41,8 +41,6 @@ def process_commands():
                         help='cross validation folds distribution file')
     parser.add_argument('--output', required=True,
                         help='output file')
-    parser.add_argument('--perfect_output',
-                        help='output perfect file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
 
@@ -146,10 +144,10 @@ def get_linkage_features(corpus_file, word_probs, detector, vectors, truth):
             feature_vector['num_of_crossed'] = len(crossed)
 
             # word scores
-            feature_vector['sum_of_prob'] = sum(probs)
-            feature_vector['mean_of_prob'] = sum(probs) / len(probs)
-            feature_vector['min_of_prob'] = min(probs)
-            feature_vector['max_of_prob'] = max(probs)
+            # feature_vector['sum_of_prob'] = sum(probs)
+            # feature_vector['mean_of_prob'] = sum(probs) / len(probs)
+            # feature_vector['min_of_prob'] = min(probs)
+            # feature_vector['max_of_prob'] = max(probs)
 
             feature_vector['num_of_words_{}'.format(len(probs))] = 1
 
@@ -168,25 +166,23 @@ def get_linkage_features(corpus_file, word_probs, detector, vectors, truth):
             # self
             me = corpus.ParseHelper.self_category(
                 parsed, [l_index, r_index])
-            feature_vector['self_{}'.format(me.label())] = 1
+            sf = corpus.ParseHelper.label(me)
+            feature_vector['self_{}'.format(sf)] = 1
 
             # parent
-            p = me.parent()
-            feature_vector[
-                'parent_{}'.format(
-                    'None' if p is None else p.label())] = 1
+            p = corpus.ParseHelper.label(
+                corpus.ParseHelper.parent_category(me))
+            feature_vector['parent_{}'.format(p)] = 1
 
             # left
-            sb = me.left_sibling()
-            feature_vector[
-                'left_sb_{}'.format(
-                    'None' if sb is None else sb.label())] = 1
+            sb = corpus.ParseHelper.label(
+                corpus.ParseHelper.left_category(me))
+            feature_vector['left_sb_{}'.format(sb)] = 1
 
             # right
-            sb = me.right_sibling()
-            feature_vector[
-                'right_sb_{}'.format(
-                    'None' if sb is None else sb.label())] = 1
+            sb = corpus.ParseHelper.label(
+                corpus.ParseHelper.right_category(me))
+            feature_vector['right_sb_{}'.format(sb)] = 1
 
             X.append(feature_vector)
             Y.append(1 if indices in truth[label] else 0)
@@ -238,19 +234,6 @@ def main():
 
     print('output file')
     output_file(args.output, cands, Y, X)
-
-    if args.perfect_output:
-        print('process perfect token probs')
-        cands, pY, pX = get_linkage_features(corpus_file,
-                                             truth_probs,
-                                             detector,
-                                             vectors,
-                                             truth)
-        print('output perfect file')
-        output_file(args.perfect_output, cands, pY, pX)
-
-        if args.check_accuracy:
-            check_accuracy(pX, pY)
 
     if args.check_accuracy:
         check_accuracy(X, Y)
