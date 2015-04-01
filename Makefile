@@ -77,7 +77,7 @@ l_train_word_probs:
 
 # 3. extract features for each linkage
 l_extract_linkage_features:
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LVECTOR_FILE) --word_probs $(LWORD_PROB_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) #--check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LVECTOR_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) #--check_accuracy
 
 # 4. train linkage probabilities
 l_train_linkage_probs:

@@ -35,8 +35,6 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--vector', required=True,
                         help='vector file')
-    parser.add_argument('--word_probs', required=True,
-                        help='word probability file')
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
     parser.add_argument('--output', required=True,
@@ -47,18 +45,7 @@ def process_commands():
     return parser.parse_args()
 
 
-def load_word_probs(path):
-    word_probs = {}
-    truth_probs = {}
-    with open(path, 'r') as f:
-        for l in f:
-            label, indices, truth, prob = l.split('\t')
-            word_probs[(label, indices)] = float(prob)
-            truth_probs[(label, indices)] = int(truth)
-    return word_probs, truth_probs
-
-
-def get_linkage_features(corpus_file, word_probs, detector, vectors, truth):
+def get_linkage_features(corpus_file, detector, vectors, truth):
     print('get linkage features')
     cands = []
     Y = []
@@ -109,7 +96,6 @@ def get_linkage_features(corpus_file, word_probs, detector, vectors, truth):
             l_index = len(tokens)
             r_index = 0
             for x, token_indices in zip(indices, t_indices):
-                probs.append(word_probs[(label, x)])
                 dist_to_bundary = min(features.min_boundary(
                     token_indices[0], token_indices[-1], tokens),
                     dist_to_boundary)
@@ -143,13 +129,7 @@ def get_linkage_features(corpus_file, word_probs, detector, vectors, truth):
             feature_vector['num_of_overlapped'] = len(overlapped)
             feature_vector['num_of_crossed'] = len(crossed)
 
-            # word scores
-            # feature_vector['sum_of_prob'] = sum(probs)
-            # feature_vector['mean_of_prob'] = sum(probs) / len(probs)
-            # feature_vector['min_of_prob'] = min(probs)
-            # feature_vector['max_of_prob'] = max(probs)
-
-            feature_vector['num_of_words_{}'.format(len(probs))] = 1
+            feature_vector['num_of_words_{}'.format(len(indices))] = 1
 
             # dist features
             feature_vector['dist'] = r_index - l_index
@@ -224,10 +204,7 @@ def main():
     corpus_file = corpus.CorpusFile(
         args.corpus, args.corpus_pos, args.corpus_parse)
 
-    word_probs, truth_probs = load_word_probs(args.word_probs)
-
     cands, Y, X = get_linkage_features(corpus_file,
-                                       word_probs,
                                        detector,
                                        vectors,
                                        truth)
