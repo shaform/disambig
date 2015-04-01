@@ -33,6 +33,8 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--linkage_probs', required=True,
                         help='linkage probability file')
+    parser.add_argument('--perfect', action='store_true',
+                        help='whether to do perfect experiment')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
 
@@ -177,6 +179,7 @@ def main():
         args.corpus, args.corpus_pos, args.corpus_parse)
     fhelper = corpus.FoldsHelper(args.folds)
     truth = linkage.LinkageFile(args.linkage)
+    words = truth.all_words()
     detector = linkage.LinkageDetector(args.tag)
 
     linkage_counts = count_linkage(args.linkage)
@@ -199,6 +202,11 @@ def main():
 
     ranking_probs = compute_ranking_probs(linkage_probs)
 
+    if args.perfect:
+        cut = lambda x, _: any((x[0], w) not in words for w in x[1])
+    else:
+        cut = lambda x, _: linkage_probs[x] < 0.7
+
     print('ranking model')
     cross_validation(
         corpus_file,
@@ -208,7 +216,7 @@ def main():
         linkage_counts,
         ranking_probs,
         word_ambig,
-        cut=lambda x, y: linkage_probs[x] < 0.7)
+        cut=cut)
 
     '''
     baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)

@@ -95,7 +95,7 @@ l_experiment:
 
 # 5.5 run the perfect experiments
 l_perfect_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --perfect --check_accuracy
 
 # a. generate parser structure
 # first stripped labels
