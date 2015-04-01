@@ -69,7 +69,12 @@ class LinkageDetector(object):
         with open(tag_path, 'r') as f:
             self.tags = {tuple(l.rstrip().split('\t')) for l in f}
 
-    def detect_by_tokens(self, tokens, *, continuous=True, cross=True):
+    def all_tokens(self, tokens, *, continuous=True, cross=False, truth=None):
+        yield from self.detect_by_tokens(tokens,
+                                         continuous=continuous,
+                                         cross=cross)
+
+    def detect_by_tokens(self, tokens, *, continuous=True, cross=False):
         for tag in self.tags:
             for indices in self.extract_tag(0, tag, 0, tokens,
                                             continuous=continuous,
@@ -80,7 +85,7 @@ class LinkageDetector(object):
                     items=None, continuous=False, cross=False):
         """
         continuous: include continuous tokens
-        cross: moust cross boundary
+        cross: must cross boundary
         """
         if items is None:
             items = []

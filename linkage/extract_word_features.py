@@ -59,7 +59,7 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
 
         for tags, poss in detector.detect_by_tokens(tokens,
                                                     continuous=True,
-                                                    cross=True):
+                                                    cross=False):
             # count ambiguity by truth
             for word in poss:
                 if (l, word) not in truth:
