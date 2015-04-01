@@ -39,13 +39,15 @@ def process_commands():
                         help='cross validation folds distribution file')
     parser.add_argument('--output', required=True,
                         help='output file')
+    parser.add_argument('--perfect_output', required=True,
+                        help='perfect output file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
 
     return parser.parse_args()
 
 
-def get_linkage_features(corpus_file, detector, vectors, truth):
+def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
     print('get linkage features')
     cands = []
     Y = []
@@ -56,14 +58,20 @@ def get_linkage_features(corpus_file, detector, vectors, truth):
     for label, tokens in corpus_file.corpus.items():
         counter.step()
 
+        if perfect:
+            truth_connectives = truth[label]
+        else:
+            truth_connectives = None
+
         pos_tokens = corpus_file.pos_corpus[label]
         parsed = corpus_file.parse_corpus[label]
         # grab overlapped statistics
         overlapped_at = defaultdict(set)
         crossed_at = defaultdict(set)
-        for _, indices in detector.detect_by_tokens(tokens,
-                                                    continuous=True,
-                                                    cross=True):
+        for _, indices in detector.all_tokens(tokens,
+                                              continuous=True,
+                                              cross=False,
+                                              truth=truth_connectives):
             for x in indices:
                 token_indices = list(linkage.token_indices(x))
                 for i in token_indices:
@@ -77,16 +85,16 @@ def get_linkage_features(corpus_file, detector, vectors, truth):
                     crossed_at[i].add(indices)
 
         # start construct features
-        for tags, indices in detector.detect_by_tokens(tokens,
-                                                       continuous=True,
-                                                       cross=True):
+        for tags, indices in detector.all_tokens(tokens,
+                                                 continuous=True,
+                                                 cross=False,
+                                                 truth=truth_connectives):
             t_indices = linkage.list_of_token_indices(indices)
             feature_vector = defaultdict(int)
 
-            feature_vector[
-                'geo_mean'] = features.geometric_dists_mean(t_indices)
-            # for cnnct in tags:
-            #    feature_vector[cnnct] = 1
+            gm = features.geometric_dists_mean(t_indices)
+            feature_vector['geo_mean'] = gm
+            # feature_vector['-'.join(tags)] = 1
 
             probs = []
             token_vectors = []
@@ -211,6 +219,18 @@ def main():
 
     print('output file')
     output_file(args.output, cands, Y, X)
+
+    if args.check_accuracy:
+        check_accuracy(X, Y)
+
+    cands, Y, X = get_linkage_features(corpus_file,
+                                       detector,
+                                       vectors,
+                                       truth,
+                                       perfect=True)
+
+    print('output perfect file')
+    output_file(args.perfect_output, cands, Y, X)
 
     if args.check_accuracy:
         check_accuracy(X, Y)

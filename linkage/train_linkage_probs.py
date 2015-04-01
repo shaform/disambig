@@ -38,7 +38,7 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     # lr = LinearSVC()
     linkage_probs = {}
 
-    stats = evaluate.FoldStats(threshold=0.7, show_fold=True)
+    stats = evaluate.FoldStats(threshold=0.7)
     for i in fhelper.folds():
         print('\ntraining for fold', i, '...')
         X = []

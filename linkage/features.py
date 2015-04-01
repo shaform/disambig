@@ -54,7 +54,10 @@ def min_boundary(left, right, tokens):
 
 def word_dists(token_indices_list):
     for a, b in zip(token_indices_list, token_indices_list[1:]):
-        yield b[0] - a[-1]
+        d = b[0] - a[-1]
+        if d < 0:
+            d = 0
+        yield d
 
 
 def token_offsets(indices):

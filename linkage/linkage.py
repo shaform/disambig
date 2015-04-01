@@ -70,9 +70,17 @@ class LinkageDetector(object):
             self.tags = {tuple(l.rstrip().split('\t')) for l in f}
 
     def all_tokens(self, tokens, *, continuous=True, cross=False, truth=None):
-        yield from self.detect_by_tokens(tokens,
-                                         continuous=continuous,
-                                         cross=cross)
+        list_of_tokens = list(self.detect_by_tokens(tokens,
+                                                    continuous=continuous,
+                                                    cross=cross))
+        if truth is not None:
+            s = {indices for _, indices in list_of_tokens}
+            for indices in truth:
+                if indices not in s:
+                    list_of_tokens.append(
+                        (tuple('' for _ in range(len(indices))), indices))
+
+        return list_of_tokens
 
     def detect_by_tokens(self, tokens, *, continuous=True, cross=False):
         for tag in self.tags:
