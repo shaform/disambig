@@ -7,7 +7,7 @@ import evaluate
 
 from collections import defaultdict
 
-from sklearn.svm import SVR
+from sklearn.svm import SVC
 
 
 def process_commands():
@@ -27,7 +27,7 @@ def process_commands():
 
 
 def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
-    lr = SVR(C=1.0, epsilon=0.2)
+    lr = SVC()
     word_probs = {}
 
     stats = evaluate.FoldStats()
