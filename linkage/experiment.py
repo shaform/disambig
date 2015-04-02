@@ -115,31 +115,46 @@ def detect_wrong(indices, visited, crossed):
 
 
 def cross_validation(corpus_file, fhelper, truth, detector,
-                     linkage_counts, linkage_probs, word_ambig, cut):
+                     linkage_counts, linkage_probs, word_ambig,
+                     cut, *, perfect=False):
     stats = evaluate.FoldStats(show_fold=True)
+    pstats = evaluate.FoldStats(show_fold=True)
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
 
     for i in fhelper.folds():
         print('\npredict for fold', i)
 
+        # compute linkage statistics
         labels = []
         Yp = []
         Y = []
 
-        for label in fhelper.test_set(i):
+        # compute paragraph statistics
+        plabels = list(fhelper.test_set(i))
+        pYp = []
+        pY = [1] * len(plabels)
+
+        for label in plabels:
             tokens = corpus_file.corpus[label]
 
+            if perfect:
+                truth_connectives = truth[label]
+            else:
+                truth_connectives = None
+
             markers = []
-            for _, indices in detector.detect_by_tokens(tokens,
-                                                        continuous=True,
-                                                        cross=True):
+            for _, indices in detector.all_tokens(tokens,
+                                                  continuous=True,
+                                                  cross=False,
+                                                  truth=truth_connectives):
                 markers.append(indices)
 
             markers.sort(key=lambda x: linkage_probs[(label, x)], reverse=True)
 
             visited = set()
             crossed = set()
+            correct = 0
             for indices in markers:
                 if indices in truth[label]:
                     Y.append(1)
@@ -158,18 +173,34 @@ def cross_validation(corpus_file, fhelper, truth, detector,
 
                 Yp.append(1)
 
+                if Yp[-1] == Y[-1] == 1:
+                    correct += 1
+
                 ilen = len(indices)
 
+            if correct == len(truth[label]):
+                pYp.append(1)
+            else:
+                pYp.append(0)
+
+        print('\nLinkage stats:')
         stats.compute_fold(labels, Yp, Y)
+
+        print('\nParagraph stats:')
+        pstats.compute_fold(plabels, pYp, pY)
 
     print('== done ==')
 
+    print('\nLinkage stats:')
     stats.print_total(truth_count=linkage_counts)
     stats.print_distribution(
         word_ambig,
         function=lambda x: {(l, w) for (l, ws) in x for w in ws})
     stats.count_by(label='length')
     print('rejected overlapped:', rejected_ov, 'rejected scores:', rejected_s)
+
+    print('\nParagraph stats:')
+    pstats.print_total()
 
 
 def main():
@@ -216,7 +247,8 @@ def main():
         linkage_counts,
         ranking_probs,
         word_ambig,
-        cut=cut)
+        cut=cut,
+        perfect=args.perfect)
 
     '''
     baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)

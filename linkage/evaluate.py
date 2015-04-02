@@ -100,7 +100,8 @@ class FoldStats(object):
                         label='Overall Total')
 
     def print_distribution(self, ambig, function=lambda x: x):
-        print('Answer distribution:')
+        '''Display correct word distribution by ambiguity'''
+        print('Answer distribution by ambiguity of words:')
         d = defaultdict(int)
         t = defaultdict(int)
 
