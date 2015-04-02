@@ -96,8 +96,10 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
             feature_vector['geo_mean'] = gm
             # feature_vector['-'.join(tags)] = 1
 
-            probs = []
             token_vectors = []
+            left_vectors = []
+            right_vectors = []
+
             dist_to_boundary = len(tokens)
             overlapped = set()
             crossed = set()
@@ -116,6 +118,14 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
                     l_index = min(l_index, i)
                     r_index = max(r_index, i)
 
+                # left vector
+                left_vectors.append(features.get_vector(
+                    l_index - 1, pos_tokens, vectors))
+
+                # right vector
+                right_vectors.append(features.get_vector(
+                    r_index + 1, pos_tokens, vectors))
+
                 # POS tag involved
                 for i in token_indices:
                     pos_tag = features.get_POS(pos_tokens[i])
@@ -130,9 +140,13 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
                             '{}_out_pos_{}'.format(side, pos_tag)] = 1
 
             # averaged word2vec vectors
-            avg_vectors = np.mean(token_vectors, axis=0)
+            token_vector = np.mean(token_vectors, axis=0)
+            left_vector = np.mean(left_vectors, axis=0)
+            right_vector = np.mean(right_vectors, axis=0)
 
-            Xext.append(avg_vectors)
+            Xext.append(np.concatenate((token_vector,
+                                        left_vector,
+                                        right_vector)))
 
             feature_vector['num_of_overlapped'] = len(overlapped)
             feature_vector['num_of_crossed'] = len(crossed)
@@ -150,6 +164,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
 
             feature_vector['left_bundary'] = lbound
             feature_vector['right_bundary'] = rbound
+
+            # syntactic features
 
             # self
             me = corpus.ParseHelper.self_category(
@@ -212,16 +228,19 @@ def main():
     corpus_file = corpus.CorpusFile(
         args.corpus, args.corpus_pos, args.corpus_parse)
 
+    print('process file')
+
     cands, Y, X = get_linkage_features(corpus_file,
                                        detector,
                                        vectors,
                                        truth)
 
-    print('output file')
     output_file(args.output, cands, Y, X)
 
     if args.check_accuracy:
         check_accuracy(X, Y)
+
+    print('process perfect file')
 
     cands, Y, X = get_linkage_features(corpus_file,
                                        detector,
@@ -229,7 +248,6 @@ def main():
                                        truth,
                                        perfect=True)
 
-    print('output perfect file')
     output_file(args.perfect_output, cands, Y, X)
 
     if args.check_accuracy:

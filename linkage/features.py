@@ -23,17 +23,18 @@ def geometric_mean(xs):
         mean **= (1 / len(xs))
         return mean
 
+_rB = re.compile(r'[!?:;,！？：；，。]')
 
 def lr_boundary(left, right, tokens):
 
     for l_offset in range(1, len(tokens) + 1):
         left -= 1
-        if left < 0 or re.search(r'\W', tokens[left]) is not None:
+        if left < 0 or _rB.search(tokens[left]) is not None:
             break
 
     for r_offset in range(1, len(tokens) + 1):
         right += 1
-        if right == len(tokens) or re.search(r'\W', tokens[right]) is not None:
+        if right == len(tokens) or _rB.search(tokens[right]) is not None:
             break
 
     return l_offset, r_offset
@@ -47,9 +48,17 @@ def min_boundary(left, right, tokens):
         right += 1
 
         if (left < 0 or right == len(tokens) or
-                re.search(r'\W', tokens[left]) is not None or
-                re.search(r'\W', tokens[right]) is not None):
+                _rB.search(tokens[left]) is not None or
+                _rB.search(tokens[right]) is not None):
             return offset
+
+def word_skips(token_indices_list, tokens):
+    for a, b in zip(token_indices_list, token_indices_list[1:]):
+        d = 0
+        for i in range(a[-1]+1, b[0]):
+            if _rB.search(tokens[i]) is not None:
+                d += 1
+        yield d
 
 
 def word_dists(token_indices_list):
