@@ -121,6 +121,7 @@ def cross_validation(corpus_file, fhelper, truth, detector,
     pstats = evaluate.FoldStats(show_fold=True)
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
+    pType = {}
 
     for i in fhelper.folds():
         print('\npredict for fold', i)
@@ -144,11 +145,22 @@ def cross_validation(corpus_file, fhelper, truth, detector,
                 truth_connectives = None
 
             markers = []
+            ambig_count = defaultdict(int)
             for _, indices in detector.all_tokens(tokens,
                                                   continuous=True,
                                                   cross=False,
                                                   truth=truth_connectives):
                 markers.append(indices)
+
+                # count ambig
+                for index_list in linkage.list_of_token_indices(indices):
+                    for index in index_list:
+                        ambig_count[index] += 1
+
+            if any([c > 1 for c in ambig_count.values()]):
+                pType[label] = (features.num_of_sentences(tokens), 'ambig')
+            else:
+                pType[label] = (features.num_of_sentences(tokens), 'unique')
 
             markers.sort(key=lambda x: linkage_probs[(label, x)], reverse=True)
 
@@ -201,6 +213,7 @@ def cross_validation(corpus_file, fhelper, truth, detector,
 
     print('\nParagraph stats:')
     pstats.print_total()
+    pstats.count_by(function=pType.get, label='Sentence Length')
 
 
 def main():

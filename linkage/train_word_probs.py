@@ -26,13 +26,8 @@ def process_commands():
     return parser.parse_args()
 
 
-def tune_parameters(fhelper, feature_tbl):
-    svr = SVC()
-    return svr
-
-
 def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
-    lr = tune_parameters(fhelper, feature_tbl)
+    lr = SVC()
     word_probs = {}
 
     stats = evaluate.FoldStats()

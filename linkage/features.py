@@ -25,6 +25,15 @@ def geometric_mean(xs):
 
 _rB = re.compile(r'[!?:;,！？：；，。]')
 
+_rE = re.compile(r'[!?:;！？：；。]')
+
+def num_of_sentences(tokens):
+    num = 1
+    for t in tokens:
+        if _rE.search(t) is not None:
+            num += 1
+    return num
+
 def lr_boundary(left, right, tokens):
 
     for l_offset in range(1, len(tokens) + 1):
