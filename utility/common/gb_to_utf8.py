@@ -34,4 +34,6 @@ if __name__ == '__main__':
             print(root, fname)
             with open(source, 'r') as sf, open(dest, 'w') as df:
                 cmdline = 'iconv -f gb18030 -t utf8'
-                Popen(cmdline, shell=True, stdout=df, stdin=sf)
+                out = Popen(cmdline, shell=True, stdout=PIPE, stdin=sf)
+                cmdline = 'sed \'s/"gb2312"/"utf-8"/\''
+                Popen(cmdline, shell=True, stdout=df, stdin=out.stdout)

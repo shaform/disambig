@@ -9,10 +9,17 @@ CLUE_CORPUS_CNNCT = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt
 LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
 CLUE_SENT_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.sent.vectors.txt
 CLUE_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.word.vectors.txt
+
+CDTB_RAW_GB_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus
+CDTB_RAW_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus-utf8
+LCORPUS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.txt
+LINKAGE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage.txt
+
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
 GCCS_FILE = $(TMP)/ccs.txt
 GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
+
 NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
 
 # prepare files to create glove output
@@ -48,13 +55,40 @@ c_sent_extract:
 	grep '^@@SSENT' $(TMP)/4300W.sent.vectors.txt | sort > $(CLUE_SENT_VECTOR)
 	cat $(TMP)/4300W.sent.vectors.txt | sed '1d' | grep -v '^@@' > $(CLUE_WORD_VECTOR)
 
+d_convert_cdtb_encoding:
+	python3 $(DISAMBIG_PRG)/utility/common/gb_to_utf8.py --input $(CDTB_RAW_GB_DIR) --output $(CDTB_RAW_DIR)
+
+# extract cdtb linkages
+d_extract_cdtb_linkage:
+	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --tag $(TMP)/linkage.raw.txt
+	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --input $(LCORPUS_FILE) --output $(TMP)/linkage.tmp.txt --tag $(TMP)/linkage.raw.txt
+	uniq $(TMP)/linkage.tmp.txt > $(LINKAGE_FILE)
+
+# generate parser structure
+# first stripped labels
+d_parse_cdtb:
+	$(DISAMBIG_TOOL)/stanford-parser-full/lexparser-lang.sh Chinese 500 edu/stanford/nlp/models/lexparser/chinesePCFG.ser.gz parsed $(DISAMBIG_DATA)/cdtb.stripped.txt
+# then concate labels again
+d_process_cdtb_parsed:
+	python3 $(DISAMBIG_PRG)/utility/common/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(DISAMBIG_DATA)/cdtb.stripped.txt.parsed.500.stp --output $(TMP)/cdtb.parsed.txt
+
+# generate folds
+d_make_folds:
+	python3 $(DISAMBIG_PRG)/utility/linkage/split_folds.py --folds 10 --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE) --output $(TMP)/folds.txt
+
+# filter vectors
+d_filter_vectors:
+	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(GGLOVE_VECTOR_FILE) --corpus_pos $(LCORPUS_POS_FILE) --output $(LVECTOR_FILE)
+
+# filter word2vec vectors
+d_filter_w2v_vectors:
+	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LW2V_VECTOR_FILE)
+
 ## -- connective experiments -- ##
 
 ## -- linkage experiments -- ##
 
-LINKAGE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage.txt
 LCNNCT_FILE = $(DISAMBIG_DATA)/connectives-simple/cdt_cdtb.txt
-LCORPUS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.txt
 LCORPUS_POS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.pos.txt
 LCORPUS_PARSE_FILE = $(DISAMBIG_DATA)/parsed/cdtb.parsed.txt
 LVECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_vectors.txt
@@ -96,22 +130,3 @@ l_experiment:
 # 5.5 run the perfect experiments
 l_perfect_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --perfect --check_accuracy
-
-# a. generate parser structure
-# first stripped labels
-l_parse_cdtb:
-	$(DISAMBIG_TOOL)/stanford-parser-full/lexparser-lang.sh Chinese 500 edu/stanford/nlp/models/lexparser/chinesePCFG.ser.gz parsed $(DISAMBIG_DATA)/cdtb.stripped.txt
-# then concate labels again
-l_process_cdtb_parsed:
-	python3 $(DISAMBIG_PRG)/utility/common/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(DISAMBIG_DATA)/cdtb.stripped.txt.parsed.500.stp --output $(TMP)/cdtb.parsed.txt
-
-# b. generate folds
-l_make_folds:
-	python3 $(DISAMBIG_PRG)/utility/linkage/split_folds.py --folds 10 --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE) --output $(TMP)/folds.txt
-
-# c. filter vectors
-l_filter_vectors:
-	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(GGLOVE_VECTOR_FILE) --corpus_pos $(LCORPUS_POS_FILE) --output $(LVECTOR_FILE)
-# c.5 filter word2vec vectors
-l_filter_w2v_vectors:
-	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LW2V_VECTOR_FILE)
