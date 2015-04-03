@@ -214,6 +214,7 @@ def cross_validation(corpus_file, fhelper, truth, detector,
     print('\nParagraph stats:')
     pstats.print_total()
     pstats.count_by(function=pType.get, label='Sentence Length')
+    pstats.count_by(function=lambda x: pType[x][1], label='Ambiguity')
 
 
 def main():

@@ -41,14 +41,32 @@ class LinkageFile(object):
 
     def __init__(self, linkage_path):
         self.linkage = defaultdict(set)
+        self.linkage_with_types = set()
         self.linkage_type = defaultdict(dict)
+        self.type_stats = defaultdict(set)
 
         with open(linkage_path, 'r') as f:
-            for l in f:
-                plabel, _, indices, tp = l.rstrip().split('\t')
-                cnnct = tuple(indices.split('-'))
-                self.linkage[plabel].add(cnnct)
-                self.linkage_type[plabel][cnnct] = int(tp)
+            items = [l.rstrip().split('\t') for l in f]
+
+        for plabel, words, indices, tp in items:
+            cnnct = tuple(indices.split('-'))
+            self.linkage[plabel].add(cnnct)
+            self.linkage_type[plabel][cnnct] = int(tp)
+            self.type_stats[words].add(tp)
+
+        for plabel, words, indices, _ in items:
+            cnnct = tuple(indices.split('-'))
+            if len(self.type_stats[words]) > 1:
+                self.linkage_with_types.add((plabel, cnnct))
+
+    def print_type_stats(self):
+        d = defaultdict(int)
+        for w, s in self.type_stats.items():
+            d[len(s)] += 1
+
+        print('Type stats')
+        for v, c in sorted(d.items()):
+            print('{}: {}'.format(v, c))
 
     def all_words(self):
         """Get identities of all single words appeared."""
