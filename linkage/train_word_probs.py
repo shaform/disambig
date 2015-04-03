@@ -26,29 +26,23 @@ def process_commands():
     return parser.parse_args()
 
 
+def tune_parameters(fhelper, feature_tbl):
+    svr = SVC()
+    return svr
+
+
 def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
-    lr = SVC()
+    lr = tune_parameters(fhelper, feature_tbl)
     word_probs = {}
 
     stats = evaluate.FoldStats()
     for i in fhelper.folds():
         print('\ntraining word probability for fold', i, '...')
-        X = []
-        Y = []
 
-        for label in fhelper.train_set(i):
-            for _, y, x in feature_tbl[label]:
-                X.append(x)
-                Y.append(y)
+        _, X, Y = fhelper.features(fhelper.train_set(i), feature_tbl)
 
-        Xt = []
-        Yt_truth = []
-        labels = []
-        for label in fhelper.test_set(i):
-            for l, y, x in feature_tbl[label]:
-                labels.append((label, l))
-                Xt.append(x)
-                Yt_truth.append(y)
+        labels, Xt, Yt_truth = fhelper.features(
+            fhelper.test_set(i), feature_tbl)
 
         lr.fit(X, Y)
         Yt = lr.predict(Xt)

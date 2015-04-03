@@ -66,6 +66,29 @@ class FoldsHelper(object):
             if key == fold:
                 yield from s
 
+    def features(self, data_set, feature_tbl, extend=0):
+        labels = []
+        X = []
+        Y = []
+
+        for label in data_set:
+            for l, y, x in feature_tbl[label]:
+                lb = (label, l)
+                if y == 1 and extend > 1:
+                    labels.extend([lb] * extend)
+                    X.extend([x] * extend)
+                    Y.extend([y] * extend)
+                else:
+                    labels.append(lb)
+                    X.append(x)
+                    Y.append(y)
+
+        return labels, X, Y
+
+    def sets(self):
+        for i in self.folds():
+            yield train_set
+
 
 class ParseHelper(object):
 

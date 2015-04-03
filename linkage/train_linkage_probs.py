@@ -34,33 +34,17 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     print('training linkage probability')
 
     lr = SVR(C=1.0, epsilon=0.2)
-    # lr = SVC(kernel='linear')
-    # lr = LinearSVC()
     linkage_probs = {}
 
     stats = evaluate.FoldStats(threshold=0.7)
     for i in fhelper.folds():
         print('\ntraining for fold', i, '...')
-        X = []
-        Y = []
 
-        for label in fhelper.train_set(i):
-            for _, y, x in feature_tbl[label]:
-                if y == 1:
-                    X.extend([x for _ in range(4)])
-                    Y.extend([y for _ in range(4)])
-                else:
-                    X.append(x)
-                    Y.append(y)
+        _, X, Y = fhelper.features(
+            fhelper.train_set(i), feature_tbl, extend=4)
 
-        Xt = []
-        Yt_truth = []
-        labels = []
-        for label in fhelper.test_set(i):
-            for l, y, x in feature_tbl[label]:
-                labels.append((label, tuple(l)))
-                Xt.append(x)
-                Yt_truth.append(y)
+        labels, Xt, Yt_truth = fhelper.features(
+            fhelper.test_set(i), feature_tbl)
 
         lr.fit(X, Y)
         Yt = lr.predict(Xt)
