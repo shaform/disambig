@@ -25,7 +25,7 @@ def geometric_mean(xs):
 
 _rB = re.compile(r'[!?:;,！？：；，。]')
 
-_rE = re.compile(r'[!?:;！？：；。]')
+_rE = re.compile(r'[！？；。]')
 
 def num_of_sentences(tokens):
     num = 1

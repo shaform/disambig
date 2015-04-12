@@ -7,7 +7,7 @@ import features
 import linkage
 
 
-from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 from sklearn import cross_validation
 from sklearn import metrics
 
@@ -47,13 +47,17 @@ def main():
     X = np.array(X)
     Y = np.array(Y)
 
+    lr = LogisticRegression()
+
     folds = cross_validation.StratifiedKFold(
         Y, 10, shuffle=True, random_state=np.random.RandomState(1))
     Yp = cross_validation.cross_val_predict(
-        SVC(), X, Y, cv=folds, n_jobs=10)
+        lr, X, Y, cv=folds, n_jobs=10)
 
     print('Overall')
     scores = metrics.precision_recall_fscore_support(Y, Yp)
+    print(scores)
+    scores = metrics.f1_score(Y, Yp, average='micro')
     print(scores)
 
     print('Only ambiguous')
@@ -61,6 +65,8 @@ def main():
     Yp = [y for i, y in enumerate(Yp) if labels[i] in truth.linkage_with_types]
     print('Total cases: {}'.format(len(Y)))
     scores = metrics.precision_recall_fscore_support(Y, Yp)
+    print(scores)
+    scores = metrics.f1_score(Y, Yp, average='micro')
     print(scores)
 
 if __name__ == '__main__':

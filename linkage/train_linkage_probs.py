@@ -9,8 +9,6 @@ import linkage
 from collections import defaultdict
 
 from sklearn.svm import SVR
-from sklearn.svm import SVC
-from sklearn.svm import LinearSVC
 
 
 def process_commands():

@@ -55,6 +55,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
     Xext = []
 
     counter = evaluate.ProgressCounter()
+    correct_count = 0
     for label, tokens in corpus_file.corpus.items():
         counter.step()
 
@@ -189,13 +190,20 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
             feature_vector['right_sb_{}'.format(sb)] = 1
 
             X.append(feature_vector)
-            Y.append(1 if indices in truth[label] else 0)
+            if indices in truth[label]:
+                Y.append(1)
+                correct_count += 1
+            else:
+                Y.append(0)
+
             cands.append((label, indices))
 
     # transform features
     X = DictVectorizer().fit_transform(X).toarray()
     X = preprocessing.scale(X)
     X = np.concatenate((X, Xext), axis=1)
+
+    print('detect {} correct linkages'.format(correct_count))
 
     return cands, Y, X
 
