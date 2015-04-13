@@ -81,7 +81,7 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                     total_words += 1
 
                     # which character is used
-                    feature_vector[cnnct] = 1
+                    # feature_vector[cnnct] = 1
 
                     indices = list(linkage.token_indices(pos))
                     l_index, r_index = features.token_offsets(indices)
@@ -96,6 +96,12 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                     feature_vector['left_bundary'] = lbound
                     feature_vector['right_bundary'] = rbound
 
+                    token_vectors = []
+                    for i in indices:
+                        token_vectors.append(
+                            vectors.get(pos_tokens[i]))
+                    token_vector = np.mean(token_vectors, axis=0)
+
                     # left vector
                     left_vector = features.get_vector(
                         l_index - 1, pos_tokens, vectors)
@@ -103,7 +109,8 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                     # right vector
                     right_vector = features.get_vector(
                         r_index + 1, pos_tokens, vectors)
-                    Xext.append(np.concatenate((left_vector, right_vector)))
+                    Xext.append(
+                        np.concatenate((token_vector, left_vector, right_vector)))
 
                     # POS tag involved
                     for i in indices:

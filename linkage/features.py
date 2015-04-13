@@ -28,7 +28,7 @@ _rB = re.compile(r'[!?:;,！？：；，。]')
 _rE = re.compile(r'[！？；。]')
 
 def num_of_sentences(tokens):
-    num = 1
+    num = 0
     for t in tokens:
         if _rE.search(t) is not None:
             num += 1

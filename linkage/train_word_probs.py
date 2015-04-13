@@ -7,7 +7,7 @@ import evaluate
 
 from collections import defaultdict
 
-from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 
 
 def process_commands():
@@ -27,7 +27,7 @@ def process_commands():
 
 
 def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
-    lr = SVC()
+    lr = LogisticRegression()
     word_probs = {}
 
     stats = evaluate.FoldStats()
