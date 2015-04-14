@@ -22,6 +22,50 @@ def process_commands():
     return parser.parse_args()
 
 
+HEADERS = [
+    'causality',
+    'coordination',
+    'transition',
+    'explanation',
+    'micro-AVG',
+    'macro-AVG',
+]
+
+
+def print_scores(Y, Yp, label):
+    print()
+    print(label, ':')
+
+    print('Relation\tPrecision\tRecall\tF1\tcases')
+
+    scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
+    scores.append([0, 0, 0, 0])
+    scores = [list(ss) for ss in scores]
+    scores = list(list(ss) for ss in zip(*scores))
+
+    for y in Y:
+        scores[y][-1] += 1
+
+    scores.extend([
+        [
+        metrics.precision_score(Y, Yp, average='micro'),
+        metrics.recall_score(Y, Yp, average='micro'),
+        metrics.f1_score(Y, Yp, average='micro'),
+        ],
+        [
+            metrics.precision_score(Y, Yp, average='macro'),
+            metrics.recall_score(Y, Yp, average='macro'),
+            metrics.f1_score(Y, Yp, average='macro'),
+        ]
+    ])
+
+    for header, score in zip(HEADERS, scores):
+        score_line = '\t'.join('{:.02}'.format(s) for s in score[:3])
+        if len(score) > 3:
+            score_line += '\t{}'.format(score[3])
+        print('{}\t{}'.format(header, score_line))
+
+
 def main():
     args = process_commands()
 
@@ -54,20 +98,12 @@ def main():
     Yp = cross_validation.cross_val_predict(
         lr, X, Y, cv=folds, n_jobs=10)
 
-    print('Overall')
-    scores = metrics.precision_recall_fscore_support(Y, Yp)
-    print(scores)
-    scores = metrics.f1_score(Y, Yp, average='micro')
-    print(scores)
+    print_scores(Y, Yp, 'Overall')
 
-    print('Only ambiguous')
     Y = [y for i, y in enumerate(Y) if labels[i] in truth.linkage_with_types]
     Yp = [y for i, y in enumerate(Yp) if labels[i] in truth.linkage_with_types]
+    print_scores(Y, Yp, 'Only ambiguous')
     print('Total cases: {}'.format(len(Y)))
-    scores = metrics.precision_recall_fscore_support(Y, Yp)
-    print(scores)
-    scores = metrics.f1_score(Y, Yp, average='micro')
-    print(scores)
 
 if __name__ == '__main__':
     main()
