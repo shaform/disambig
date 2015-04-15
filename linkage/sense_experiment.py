@@ -43,6 +43,7 @@ def print_scores(Y, Yp, label):
     scores = [list(ss) for ss in scores]
     scores = list(list(ss) for ss in zip(*scores))
 
+    print('length', len(Y))
     for y in Y:
         scores[y][-1] += 1
 

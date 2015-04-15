@@ -9,8 +9,8 @@ def print_scores(recall, prec, label=None):
     if label is not None:
         print(label + '\t', end='')
 
-    print('recall: {}\tprec: {}\t f1: {}'.format(
-          recall, prec, f1(recall, prec)))
+    print('prec: {}\trecall: {}\t f1: {}'.format(
+          prec, recall, f1(recall, prec)))
 
 
 class ProgressCounter(object):

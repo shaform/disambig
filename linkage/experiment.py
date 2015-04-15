@@ -116,9 +116,10 @@ def detect_wrong(indices, visited, crossed):
 
 def cross_validation(corpus_file, fhelper, truth, detector,
                      linkage_counts, linkage_probs, word_ambig,
-                     cut, *, perfect=False):
+                     cut, *, words=None, perfect=False):
     stats = evaluate.FoldStats(show_fold=True)
     pstats = evaluate.FoldStats(show_fold=True)
+    wstats = evaluate.FoldStats(show_fold=True)
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
     pType = {}
@@ -136,6 +137,12 @@ def cross_validation(corpus_file, fhelper, truth, detector,
         pYp = []
         pY = [1] * len(plabels)
 
+        # compute word statistics
+        wlabels = []
+        wYp = []
+        wY = []
+
+        has_words = set()
         for label in plabels:
             tokens = corpus_file.corpus[label]
 
@@ -146,16 +153,28 @@ def cross_validation(corpus_file, fhelper, truth, detector,
 
             markers = []
             ambig_count = defaultdict(int)
+            cand_words = set()
             for _, indices in detector.all_tokens(tokens,
                                                   continuous=True,
                                                   cross=False,
                                                   truth=truth_connectives):
                 markers.append(indices)
 
+                # add words
+                for windex in indices:
+                    cand_words.add(windex)
+
                 # count ambig
                 for index_list in linkage.list_of_token_indices(indices):
                     for index in index_list:
                         ambig_count[index] += 1
+
+            for windex in cand_words:
+                wlabels.append((label, windex))
+                if (label, windex) in words:
+                    wY.append(1)
+                else:
+                    wY.append(0)
 
             if any([c > 1 for c in ambig_count.values()]):
                 pType[label] = (features.num_of_sentences(tokens), 'ambig')
@@ -185,6 +204,9 @@ def cross_validation(corpus_file, fhelper, truth, detector,
 
                 Yp.append(1)
 
+                for windex in indices:
+                    has_words.add((label, windex))
+
                 if Yp[-1] == Y[-1] == 1:
                     correct += 1
 
@@ -201,6 +223,14 @@ def cross_validation(corpus_file, fhelper, truth, detector,
         print('\nParagraph stats:')
         pstats.compute_fold(plabels, pYp, pY)
 
+        print('\nWord stats:')
+        for w in wlabels:
+            if w in has_words:
+                wYp.append(1)
+            else:
+                wYp.append(0)
+        wstats.compute_fold(wlabels, wYp, wY)
+
     print('== done ==')
 
     print('\nLinkage stats:')
@@ -215,6 +245,9 @@ def cross_validation(corpus_file, fhelper, truth, detector,
     pstats.print_total()
     pstats.count_by(function=pType.get, label='Sentence Length')
     pstats.count_by(function=lambda x: pType[x][1], label='Ambiguity')
+
+    print('\nWord stats:')
+    wstats.print_total(truth_count=len(words))
 
 
 def main():
@@ -250,7 +283,7 @@ def main():
     if args.perfect:
         cut = lambda x, _: any((x[0], w) not in words for w in x[1])
     else:
-        cut = lambda x, _: linkage_probs[x] < 0.7
+        cut = lambda x, _: linkage_probs[x] < 0.6
 
     print('ranking model')
     cross_validation(
@@ -262,6 +295,7 @@ def main():
         ranking_probs,
         word_ambig,
         cut=cut,
+        words=words,
         perfect=args.perfect)
 
     '''
