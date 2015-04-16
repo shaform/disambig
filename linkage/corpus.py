@@ -8,21 +8,23 @@ from nltk.tree import ParentedTree
 
 class CorpusFile(object):
 
-    def __init__(self, corpus_path, pos_path, parse_path):
+    def __init__(self, corpus_path, pos_path=None, parse_path=None):
         self.corpus = {}
         self.pos_corpus = {}
         for path, d in ((corpus_path, self.corpus), (pos_path, self.pos_corpus)):
-            with open(path, 'r') as f:
-                for l in f:
-                    label, tokens = l.rstrip('\n').split('\t')
-                    tokens = tokens.split()
-                    d[label] = tokens
+            if path is not None:
+                with open(path, 'r') as f:
+                    for l in f:
+                        label, tokens = l.rstrip('\n').split('\t')
+                        tokens = tokens.split()
+                        d[label] = tokens
 
         self.parse_corpus = {}
-        with open(parse_path, 'r') as f:
-            for l in f:
-                label, parsed = l.rstrip('\n').split('\t')
-                self.parse_corpus[label] = ParentedTree.fromstring(parsed)
+        if parse_path is not None:
+            with open(parse_path, 'r') as f:
+                for l in f:
+                    label, parsed = l.rstrip('\n').split('\t')
+                    self.parse_corpus[label] = ParentedTree.fromstring(parsed)
 
 
 class VectorFile(object):

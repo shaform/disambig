@@ -134,3 +134,6 @@ l_perfect_experiment:
 # 6. run sense experiment
 l_sense_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE)
+
+l_statistics:
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/statistics.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE)

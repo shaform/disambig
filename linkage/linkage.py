@@ -11,6 +11,8 @@ def all_indices(s, target, offset=0):
         i = s.find(target, i + 1)
     return listindex
 
+ITEM_FORMAT = '{}[{}:{}]'
+
 
 def extract_item(tag, tokens, it, continuous=False):
     item = []
@@ -18,7 +20,7 @@ def extract_item(tag, tokens, it, continuous=False):
     for i in range(it, len(tokens)):
         text += tokens[i]
         if tag.startswith(text):
-            item.append('{}[{}:{}]'.format(i, 0, len(tokens[i])))
+            item.append(ITEM_FORMAT.format(i, 0, len(tokens[i])))
             if tag == text:
                 return i, item
             elif not continuous:
@@ -26,6 +28,35 @@ def extract_item(tag, tokens, it, continuous=False):
         else:
             break
     return it, None
+
+
+def offsets_to_items(offsets, tokens, text):
+    items = []
+    it = 0
+    it_start = 0
+    for start, end in offsets:
+        item = []
+
+        while end > it_start:
+            it_end = it_start + len(tokens[it])
+
+            if start < it_end:
+                item.append(ITEM_FORMAT.format(
+                    it,
+                    max(start - it_start, 0),
+                    min(end - it_start, len(tokens[it]))
+                ))
+
+            it += 1
+            it_start = it_end
+
+        items.append(item)
+
+    return items
+
+
+def items_to_tuple(items):
+    return tuple(','.join(item) for item in items)
 
 
 def token_indices(word):
@@ -110,6 +141,12 @@ class LinkageDetector(object):
                                             cross=cross):
                 yield tag, indices
 
+    def detect_all(self, tokens):
+        for tag in self.tags:
+            for indices in self.extract_all_tag(0, tag, 0, tokens,
+                                                ''.join(tokens)):
+                yield tag, indices
+
     def extract_tag(self, idx, tag, it, tokens, *,
                     items=None, continuous=False, cross=False):
         """
@@ -120,7 +157,7 @@ class LinkageDetector(object):
             items = []
 
         if idx >= len(tag):
-            yield tuple(','.join(item) for item in items)
+            yield items_to_tuple(items)
         else:
             for i in range(it, len(tokens)):
                 offset, item = extract_item(
@@ -137,3 +174,27 @@ class LinkageDetector(object):
                         idx + 1, tag, offset + 1, tokens,
                         items=items, continuous=continuous)
                     items.pop()
+
+    def extract_all_tag(self, idx, tag, start, tokens, text, *,
+                        offsets=None):
+        if offsets is None:
+            offsets = []
+
+        if idx >= len(tag):
+            items = offsets_to_items(offsets, tokens, text)
+            yield items_to_tuple(items)
+        else:
+            component = tag[idx]
+            while True:
+                offset = text.find(component, start)
+                if offset != -1:
+                    end = offset + len(component)
+                    offsets.append((offset, end))
+                    yield from self.extract_all_tag(
+                        idx + 1, tag, end, tokens, text,
+                        offsets=offsets)
+                    offsets.pop()
+
+                    start = offset + 1
+                else:
+                    break
