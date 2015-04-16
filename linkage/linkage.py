@@ -75,6 +75,7 @@ class LinkageFile(object):
         self.linkage_with_types = set()
         self.linkage_type = defaultdict(dict)
         self.type_stats = defaultdict(set)
+        self.type_counts = defaultdict(int)
 
         with open(linkage_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
@@ -84,6 +85,7 @@ class LinkageFile(object):
             self.linkage[plabel].add(cnnct)
             self.linkage_type[plabel][cnnct] = int(tp)
             self.type_stats[words].add(tp)
+            self.type_counts[words] += 1
 
         for plabel, words, indices, _ in items:
             cnnct = tuple(indices.split('-'))
@@ -92,11 +94,17 @@ class LinkageFile(object):
 
     def print_type_stats(self):
         d = defaultdict(int)
+        dinst = defaultdict(int)
         for w, s in self.type_stats.items():
             d[len(s)] += 1
+            dinst[len(s)] += self.type_counts[w]
 
         print('Type stats')
         for v, c in sorted(d.items()):
+            print('{}: {}'.format(v, c))
+
+        print('Type instances stats')
+        for v, c in sorted(dinst.items()):
             print('{}: {}'.format(v, c))
 
     def all_words(self):

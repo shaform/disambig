@@ -29,7 +29,7 @@ def print_total_recall_cand(total, recall, cand, label=''):
     ))
 
 
-def count_by_num(counts, bound=6):
+def count_by_num(counts, bound=5):
     d = defaultdict(int)
     for v in counts.values():
         if v >= bound:
