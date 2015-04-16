@@ -66,9 +66,11 @@ def stat_all_detect(detector, corpus_file, truth):
         counter.step()
 
         components = set()
+        connectives = set()
         for _, poss in detector.detect_all(tokens):
             if poss in truth[l]:
                 recall_conective_count += 1
+            connectives.add(poss)
             for pos in poss:
                 components.add(pos)
                 cand_disambig_count[(l, pos)] += 1
@@ -78,6 +80,7 @@ def stat_all_detect(detector, corpus_file, truth):
                     disambig_count[(l, pos)] += 1
 
             cand_connective_count += 1
+
         cand_component_count += len(components)
         for x in components:
             if (l, x) in words:
@@ -86,10 +89,9 @@ def stat_all_detect(detector, corpus_file, truth):
         total_connective_count += len(truth[l])
         for c in truth[l]:
             length_count[len(c)] += 1
-            for x in c:
-                y = (l, x)
-                if y not in disambig_count:
-                    disambig_count[y] = 1
+            if c not in connectives:
+                for x in c:
+                    disambig_count[(l, x)] = 1
 
     # print stats
 
