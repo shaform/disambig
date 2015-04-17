@@ -1,7 +1,6 @@
 """Extract features for words in corpus"""
 import argparse
-import os
-import sys
+import re
 
 import numpy as np
 
@@ -14,6 +13,12 @@ from collections import defaultdict
 
 from sklearn.feature_extraction import DictVectorizer
 from sklearn import preprocessing
+
+
+PN = 'PN'
+POS = 'POS'
+NUM = 'NUM'
+GLOVE = 'GLOVE'
 
 
 def process_commands():
@@ -34,11 +39,25 @@ def process_commands():
                         help='output file')
     parser.add_argument('--output_ambig',
                         help='output word ambiguity file')
+    parser.add_argument('--select',
+                        help='only select a feature set',
+                        choices=(PN, POS, NUM, GLOVE))
 
     return parser.parse_args()
 
 
-def get_features(detector, corpus_file, vectors, truth, ambig_path):
+FILTER_SET = {
+    PN: ('self_', 'parent_', 'left_sb_', 'right_sb_'),
+    POS: ('in_pos_', 'left_pos_', 'right_pos_'),
+    NUM: ('num_of_choices', 'left_boundary', 'right_boundary'),
+}
+
+for k, v in FILTER_SET.items():
+    FILTER_SET[k] = re.compile('({})'.format('|'.join(v)))
+
+
+def get_features(detector, corpus_file, vectors, truth, ambig_path,
+                 select=None):
 
     cands = []
     Y = []
@@ -87,14 +106,14 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                     l_index, r_index = features.token_offsets(indices)
 
                     # distance to boundary
-                    # feature_vector['dist_to_bundary'] = features.min_boundary(
+                    # feature_vector['dist_to_boundary'] = features.min_boundary(
                     #    indices[0], indices[-1], tokens)
 
                     lbound, rbound = features.lr_boundary(
                         indices[0], indices[-1], tokens)
 
-                    feature_vector['left_bundary'] = lbound
-                    feature_vector['right_bundary'] = rbound
+                    feature_vector['left_boundary'] = lbound
+                    feature_vector['right_boundary'] = rbound
 
                     token_vectors = []
                     for i in indices:
@@ -110,7 +129,8 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                     right_vector = features.get_vector(
                         r_index + 1, pos_tokens, vectors)
                     Xext.append(
-                        np.concatenate((token_vector, left_vector, right_vector)))
+                        np.concatenate((token_vector, left_vector,
+                                        right_vector)))
 
                     # POS tag involved
                     for i in indices:
@@ -191,10 +211,18 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path):
                 f.write('{}\t{}\t0\t0\n'.format(
                     l, word))
 
+    if select in (PN, POS, NUM):
+        r = FILTER_SET[select]
+        for x in X:
+            for k in list(x):
+                if r.match(k) is None:
+                    del x[k]
+
     # transform features
     X = DictVectorizer().fit_transform(X).toarray()
     X = preprocessing.scale(X)
-    X = np.concatenate((X, Xext), axis=1)
+    if select is None or select == GLOVE:
+        X = np.concatenate((X, Xext), axis=1)
 
     return cands, Y, X
 
@@ -219,7 +247,8 @@ def main():
     vectors = corpus.VectorFile(args.vector)
 
     cands, Y, X = get_features(
-        detector, corpus_file, vectors, truth, args.output_ambig)
+        detector, corpus_file, vectors, truth, args.output_ambig,
+        select=args.select)
 
     output_file(args.output, cands, Y, X)
 
