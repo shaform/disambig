@@ -1,8 +1,6 @@
 """Main program for linkage experiments"""
 import argparse
 
-import numpy as np
-
 import corpus
 import evaluate
 import features
@@ -10,7 +8,7 @@ import linkage
 
 from collections import defaultdict
 
-from sklearn.svm import SVR
+from sklearn.linear_model import LogisticRegression
 
 
 def process_commands():
@@ -25,6 +23,8 @@ def process_commands():
                         help='word probability file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
+    parser.add_argument('--linkage_features', required=True,
+                        help='linkage features file')
     parser.add_argument('--corpus', required=True,
                         help='raw corpus file')
     parser.add_argument('--corpus_pos', required=True,
@@ -114,15 +114,92 @@ def detect_wrong(indices, visited, crossed):
     return False
 
 
-def cross_validation(corpus_file, fhelper, truth, detector,
+def train_sense_lr(lr, fhelper, data_set, feature_tbl, truth):
+    X = []
+    Y = []
+    for (label, indices), x, y in zip(*fhelper.features(
+            data_set, feature_tbl)):
+        if indices in truth.linkage[label]:
+            X.append(x)
+            Y.append(truth.linkage_type[label][indices])
+    lr.fit(X, Y)
+
+NON_DIS = 4
+
+
+def predict_sense(labels, Yp, Y, lr, feature_set, truth):
+    sX = []
+    sY = []
+    slabels = []
+
+    for label, yp, y in zip(labels, Yp, Y):
+        # only predict extracted connectives
+        if yp == 1:
+            sX.append(feature_set[label])
+            if y == 0:
+                # non-discourse
+                sY.append(NON_DIS)
+            else:
+                sY.append(truth.linkage_type[label[0]][label[1]])
+
+            slabels.append(label)
+
+    sYp = lr.predict(sX)
+    return slabels, sYp, sY
+
+
+def append_sense_items(all_slabels, all_sY, all_sYp, feature_tbl, truth):
+    s = set(all_slabels)
+    print('original connectives size:', len(s), len(all_slabels))
+
+    for label, all_features in feature_tbl.items():
+        for l, y, x in all_features:
+            if (label, l) not in s:
+                s.add((label, l))
+                if y == 0:
+                    # non-discourse
+                    all_sY.append(NON_DIS)
+                else:
+                    all_sY.append(truth.linkage_type[label][l])
+                all_sYp.append(NON_DIS)
+
+    print('appended connectives size:', len(s), len(all_sY))
+
+    for label, types in truth.linkage_type.items():
+        for l, t in types.items():
+            if (label, l) not in s:
+                s.add((label, l))
+                all_sY.append(t)
+                all_sYp.append(NON_DIS)
+
+    print('total truth connectives size:', len(s), len(all_sY))
+
+
+def get_feature_set(feature_tbl):
+    d = {}
+    for label, all_features in feature_tbl.items():
+        for l, _, x in all_features:
+            d[(label, l)] = x
+    return d
+
+
+def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, linkage_probs, word_ambig,
                      cut, *, words=None, perfect=False):
     stats = evaluate.FoldStats(show_fold=True)
-    pstats = evaluate.FoldStats(show_fold=True)
+    # pstats = evaluate.FoldStats(show_fold=True)
     wstats = evaluate.FoldStats(show_fold=True)
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
-    pType = {}
+    # pType = {}
+
+    lr = LogisticRegression()
+
+    # compute sense statistics
+    all_slabels = []
+    all_sYp = []
+    all_sY = []
+    feature_set = get_feature_set(feature_tbl)
 
     for i in fhelper.folds():
         print('\npredict for fold', i)
@@ -134,8 +211,8 @@ def cross_validation(corpus_file, fhelper, truth, detector,
 
         # compute paragraph statistics
         plabels = list(fhelper.test_set(i))
-        pYp = []
-        pY = [1] * len(plabels)
+        # pYp = []
+        # pY = [1] * len(plabels)
 
         # compute word statistics
         wlabels = []
@@ -176,10 +253,10 @@ def cross_validation(corpus_file, fhelper, truth, detector,
                 else:
                     wY.append(0)
 
-            if any([c > 1 for c in ambig_count.values()]):
-                pType[label] = (features.num_of_sentences(tokens), 'ambig')
-            else:
-                pType[label] = (features.num_of_sentences(tokens), 'unique')
+            # if any([c > 1 for c in ambig_count.values()]):
+            #     pType[label] = (features.num_of_sentences(tokens), 'ambig')
+            # else:
+            #     pType[label] = (features.num_of_sentences(tokens), 'unique')
 
             markers.sort(key=lambda x: linkage_probs[(label, x)], reverse=True)
 
@@ -212,17 +289,16 @@ def cross_validation(corpus_file, fhelper, truth, detector,
 
                 ilen = len(indices)
 
-            if correct == len(truth[label]):
-                pYp.append(1)
-            else:
-                pYp.append(0)
+            # if correct == len(truth[label]):
+            #     pYp.append(1)
+            # else:
+            #     pYp.append(0)
 
         print('\nLinkage stats:')
         stats.compute_fold(labels, Yp, Y)
 
-        print('\nParagraph stats:')
-        pstats.compute_fold(plabels, pYp, pY)
-
+        # print('\nParagraph stats:')
+        # pstats.compute_fold(plabels, pYp, pY)
         print('\nWord stats:')
         for w in wlabels:
             if w in has_words:
@@ -230,6 +306,15 @@ def cross_validation(corpus_file, fhelper, truth, detector,
             else:
                 wYp.append(0)
         wstats.compute_fold(wlabels, wYp, wY)
+
+        print('compute sense statistics...', end='', flush=True)
+        train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl, truth)
+        slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set, truth)
+        print('done!')
+
+        all_slabels.extend(slabels)
+        all_sYp.extend(sYp)
+        all_sY.extend(sY)
 
     print('== done ==')
 
@@ -241,13 +326,17 @@ def cross_validation(corpus_file, fhelper, truth, detector,
     stats.count_by(label='length')
     print('rejected overlapped:', rejected_ov, 'rejected scores:', rejected_s)
 
-    print('\nParagraph stats:')
-    pstats.print_total()
-    pstats.count_by(function=pType.get, label='Sentence Length')
-    pstats.count_by(function=lambda x: pType[x][1], label='Ambiguity')
+    # print('\nParagraph stats:')
+    # pstats.print_total()
+    # pstats.count_by(function=pType.get, label='Sentence Length')
+    # pstats.count_by(function=lambda x: pType[x][1], label='Ambiguity')
 
     print('\nWord stats:')
     wstats.print_total(truth_count=len(words))
+
+    print('Sense stats:')
+    append_sense_items(all_slabels, all_sY, all_sYp, feature_tbl, truth)
+    evaluate.print_sense_scores(all_sY, all_sYp, 'Overall')
 
 
 def main():
@@ -259,6 +348,8 @@ def main():
     truth = linkage.LinkageFile(args.linkage)
     words = truth.all_words()
     detector = linkage.LinkageDetector(args.tag)
+    feature_tbl = features.load_features_table(
+        args.linkage_features, lambda x: tuple(x.split('-')))
 
     linkage_counts = count_linkage(args.linkage)
     linkage_probs = load_linkage_probs(args.linkage_probs)
@@ -289,6 +380,7 @@ def main():
     cross_validation(
         corpus_file,
         fhelper,
+        feature_tbl,
         truth,
         detector,
         linkage_counts,

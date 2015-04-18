@@ -3,13 +3,13 @@ import argparse
 
 import numpy as np
 
+import evaluate
 import features
 import linkage
 
 
 from sklearn.linear_model import LogisticRegression
 from sklearn import cross_validation
-from sklearn import metrics
 
 
 def process_commands():
@@ -20,51 +20,6 @@ def process_commands():
                         help='linkage features file')
 
     return parser.parse_args()
-
-
-HEADERS = [
-    'causality',
-    'coordination',
-    'transition',
-    'explanation',
-    'micro-AVG',
-    'macro-AVG',
-]
-
-
-def print_scores(Y, Yp, label):
-    print()
-    print(label, ':')
-
-    print('Relation\tPrecision\tRecall\tF1\tcases')
-
-    scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
-    scores.append([0, 0, 0, 0])
-    scores = [list(ss) for ss in scores]
-    scores = list(list(ss) for ss in zip(*scores))
-
-    print('length', len(Y))
-    for y in Y:
-        scores[y][-1] += 1
-
-    scores.extend([
-        [
-        metrics.precision_score(Y, Yp, average='micro'),
-        metrics.recall_score(Y, Yp, average='micro'),
-        metrics.f1_score(Y, Yp, average='micro'),
-        ],
-        [
-            metrics.precision_score(Y, Yp, average='macro'),
-            metrics.recall_score(Y, Yp, average='macro'),
-            metrics.f1_score(Y, Yp, average='macro'),
-        ]
-    ])
-
-    for header, score in zip(HEADERS, scores):
-        score_line = '\t'.join('{:.02}'.format(s) for s in score[:3])
-        if len(score) > 3:
-            score_line += '\t{}'.format(score[3])
-        print('{}\t{}'.format(header, score_line))
 
 
 def main():
@@ -99,11 +54,11 @@ def main():
     Yp = cross_validation.cross_val_predict(
         lr, X, Y, cv=folds, n_jobs=10)
 
-    print_scores(Y, Yp, 'Overall')
+    evaluate.print_sense_scores(Y, Yp, 'Overall')
 
     Y = [y for i, y in enumerate(Y) if labels[i] in truth.linkage_with_types]
     Yp = [y for i, y in enumerate(Yp) if labels[i] in truth.linkage_with_types]
-    print_scores(Y, Yp, 'Only ambiguous')
+    evaluate.print_sense_scores(Y, Yp, 'Only ambiguous')
     print('Total cases: {}'.format(len(Y)))
 
 if __name__ == '__main__':

@@ -1,4 +1,8 @@
+import numpy as np
+
 from collections import defaultdict
+
+from sklearn import metrics
 
 
 def f1(recall, prec):
@@ -11,6 +15,86 @@ def print_scores(recall, prec, label=None):
 
     print('prec: {}\trecall: {}\t f1: {}'.format(
           prec, recall, f1(recall, prec)))
+
+_HEADERS = [
+    'causality',
+    'coordination',
+    'transition',
+    'explanation',
+    'micro-AVG',
+    'macro-AVG',
+]
+
+_ALL_HEADERS = [
+    'causality',
+    'coordination',
+    'transition',
+    'explanation',
+    'non-discourse',
+    'micro-AVG',
+    'macro-AVG',
+    'micro-AVG*',
+    'macro-AVG*',
+]
+
+
+def print_sense_scores(Y, Yp, label):
+    print()
+    print(label, ':')
+
+    print('length', len(Y))
+    print('Relation\tPrec\tRecall\tF1\tcases')
+
+    scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
+    scores.append([0] * len(scores[0]))
+    scores = [list(ss) for ss in scores]
+    scores = list(list(ss) for ss in zip(*scores))
+
+    for y in Y:
+        scores[y][-1] += 1
+
+    scores.extend([
+        [
+            metrics.precision_score(Y, Yp, average='micro'),
+            metrics.recall_score(Y, Yp, average='micro'),
+            metrics.f1_score(Y, Yp, average='micro'),
+        ],
+        [
+            metrics.precision_score(Y, Yp, average='macro'),
+            metrics.recall_score(Y, Yp, average='macro'),
+            metrics.f1_score(Y, Yp, average='macro'),
+        ]
+    ])
+
+    if len(scores) == len(_HEADERS):
+        headers = _HEADERS
+    else:
+        headers = _ALL_HEADERS
+
+        # calculate average scores for true connectives only
+        rel_scores = scores[:4]
+
+        total_pred = total_positive = positive = 0
+        for y, yp in zip(Y, Yp):
+            if yp != 4:
+                total_pred += 1
+            if y != 4:
+                total_positive += 1
+                if y == yp:
+                    positive += 1
+        prec = positive / total_pred
+        rec = positive / total_positive
+
+        scores.extend([
+                      [prec, rec, f1(rec, prec)],
+                      np.mean(rel_scores, axis=0)[:3]
+                      ])
+
+    for header, score in zip(headers, scores):
+        score_line = '\t'.join('{:.02}'.format(s) for s in score[:3])
+        if len(score) > 3:
+            score_line += '\t{}'.format(score[3])
+        print('{}\t{}'.format(header, score_line))
 
 
 class ProgressCounter(object):
