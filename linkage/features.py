@@ -8,6 +8,7 @@ import corpus
 from collections import defaultdict
 
 from sklearn.feature_extraction import DictVectorizer
+from sklearn import preprocessing
 
 
 def geometric_dists_mean(token_indices_list):
@@ -104,7 +105,21 @@ def get_POS(s):
     return s.split('/')[1]
 
 
-def PN_feature_set(parsed, l_index, r_index):
+def POS_feature_set(feature_vector, indices, pos_tokens):
+    # POS tags involved
+    for i in indices:
+        pos_tag = get_POS(pos_tokens[i])
+        feature_vector['in_pos_{}'.format(pos_tag)] = 1
+
+    # left, right POS tags
+    l_index, r_index = token_offsets(indices)
+    for idx, label in ((l_index - 1, 'left'), (r_index + 1, 'right')):
+        if 0 <= idx < len(pos_tokens):
+            pos_tag = get_POS(pos_tokens[idx])
+            feature_vector['{}_pos_{}'.format(label, pos_tag)] = 1
+
+
+def PN_feature_set(feature_vector, parsed, l_index, r_index):
     # self
     me = corpus.ParseHelper.self_category(
         parsed, [l_index, r_index])
@@ -122,7 +137,10 @@ def PN_feature_set(parsed, l_index, r_index):
     rsb = corpus.ParseHelper.label(
         corpus.ParseHelper.right_category(me))
 
-    return sf, p, lsb, rsb
+    feature_vector['self_{}'.format(sf)] = 1
+    feature_vector['parent_{}'.format(p)] = 1
+    feature_vector['left_sb_{}'.format(lsb)] = 1
+    feature_vector['right_sb_{}'.format(rsb)] = 1
 
 
 def load_features_table(path, tlabel_transform=lambda x: x):

@@ -84,6 +84,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
 
         pos_tokens = corpus_file.pos_corpus[label]
         parsed = corpus_file.parse_corpus[label]
+
         # grab overlapped statistics
         overlapped_at = defaultdict(set)
         crossed_at = defaultdict(set)
@@ -145,19 +146,10 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
                     r_index + 1, pos_tokens, vectors))
 
                 # POS
-
-                # POS tag involved
-                for i in token_indices:
-                    pos_tag = features.get_POS(pos_tokens[i])
-                    feature_vector['in_pos_{}'.format(pos_tag)] = 1
-
-                # neighbor POSes
-                for i, side in ((token_indices[0] - 1, 'left'),
-                               (token_indices[-1] + 1, 'right')):
-                    if i >= 0 and i < len(pos_tokens):
-                        pos_tag = features.get_POS(pos_tokens[i])
-                        feature_vector[
-                            '{}_pos_{}'.format(side, pos_tag)] = 1
+                features.POS_feature_set(
+                    feature_vector,
+                    token_indices,
+                    pos_tokens)
 
             # GLOVE
 
@@ -189,12 +181,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['right_bundary'] = rbound
 
             # P & N
-            sf, p, lsb, rsb = features.PN_feature_set(
-                parsed, l_index, r_index)
-            feature_vector['self_{}'.format(sf)] = 1
-            feature_vector['parent_{}'.format(p)] = 1
-            feature_vector['left_sb_{}'.format(lsb)] = 1
-            feature_vector['right_sb_{}'.format(rsb)] = 1
+            features.PN_feature_set(
+                feature_vector, parsed, l_index, r_index)
 
             X.append(feature_vector)
             if indices in truth[label]:
@@ -259,6 +247,8 @@ def main():
 
     if args.check_accuracy:
         check_accuracy(X, Y)
+
+    # extract perfect features for sense experiments
 
     if args.perfect_output:
         print('process perfect file')

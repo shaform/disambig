@@ -100,11 +100,12 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                     l_index, r_index = features.token_offsets(indices)
 
                     lbound, rbound = features.lr_boundary(
-                        indices[0], indices[-1], tokens)
+                        l_index, r_index, tokens)
 
                     feature_vector['left_boundary'] = lbound
                     feature_vector['right_boundary'] = rbound
 
+                    # GLOVE
                     token_vectors = []
                     for i in indices:
                         token_vectors.append(
@@ -118,32 +119,18 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                     # right vector
                     right_vector = features.get_vector(
                         r_index + 1, pos_tokens, vectors)
+
                     Xext.append(
                         np.concatenate((token_vector, left_vector,
                                         right_vector)))
 
-                    # POS tag involved
-                    for i in indices:
-                        pos_tag = features.get_POS(pos_tokens[i])
-                        feature_vector['in_pos_{}'.format(pos_tag)] = 1
-
-                    # left POS
-                    if l_index > 0:
-                        pos_tag = features.get_POS(pos_tokens[l_index - 1])
-                        feature_vector['left_pos_{}'.format(pos_tag)] = 1
-
-                    # right POS
-                    if r_index < len(pos_tokens) - 1:
-                        pos_tag = features.get_POS(pos_tokens[r_index + 1])
-                        feature_vector['right_pos_{}'.format(pos_tag)] = 1
+                    # POS
+                    features.POS_feature_set(
+                        feature_vector, indices, pos_tokens)
 
                     # P & N
-                    sf, p, lsb, rsb = features.PN_feature_set(
-                        parsed, l_index, r_index)
-                    feature_vector['self_{}'.format(sf)] = 1
-                    feature_vector['parent_{}'.format(p)] = 1
-                    feature_vector['left_sb_{}'.format(lsb)] = 1
-                    feature_vector['right_sb_{}'.format(rsb)] = 1
+                    features.PN_feature_set(
+                        feature_vector, parsed, l_index, r_index)
 
                     X.append(feature_vector)
                     cands.append(cand)
