@@ -221,8 +221,10 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
     # transform features
     X = DictVectorizer().fit_transform(X).toarray()
     X = preprocessing.scale(X)
-    if select is None or select == GLOVE:
+    if select is None:
         X = np.concatenate((X, Xext), axis=1)
+    elif select == GLOVE:
+        X = Xext
 
     return cands, Y, X
 

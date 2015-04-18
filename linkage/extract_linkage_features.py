@@ -1,8 +1,6 @@
 """Extract features for linkages in corpus"""
 import argparse
-import os
 import re
-import sys
 
 import numpy as np
 
@@ -13,12 +11,15 @@ import corpus
 
 from collections import defaultdict
 
-from sklearn import linear_model
-from sklearn.svm import SVR
 from sklearn.feature_extraction import DictVectorizer
 from sklearn import preprocessing
 from sklearn import svm
 from sklearn import cross_validation
+
+PN = 'PN'
+POS = 'POS'
+NUM = 'NUM'
+GLOVE = 'GLOVE'
 
 
 def process_commands():
@@ -39,15 +40,34 @@ def process_commands():
                         help='cross validation folds distribution file')
     parser.add_argument('--output', required=True,
                         help='output file')
-    parser.add_argument('--perfect_output', required=True,
+    parser.add_argument('--perfect_output',
                         help='perfect output file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
+    parser.add_argument('--select',
+                        help='only select a feature set',
+                        choices=(PN, POS, NUM, GLOVE))
 
     return parser.parse_args()
 
 
-def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
+FILTER_SET = {
+    PN: ('self_', 'parent_', 'left_sb_', 'right_sb_'),
+    POS: ('in_pos_', 'left_pos_', 'right_pos_'),
+    NUM: ('num_of_overlapped', 'num_of_crossed',
+          'left_boundary', 'right_boundary',
+          'dist', 'dist_to_boundary',
+          'geo_mean',
+          'num_of_words_'),
+}
+
+
+for k, v in FILTER_SET.items():
+    FILTER_SET[k] = re.compile('({})'.format('|'.join(v)))
+
+
+def get_linkage_features(corpus_file, detector, vectors, truth, *,
+                         select=None, perfect=False):
     print('get linkage features')
     cands = []
     Y = []
@@ -138,7 +158,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
                     if i >= 0 and i < len(pos_tokens):
                         pos_tag = features.get_POS(pos_tokens[i])
                         feature_vector[
-                            '{}_out_pos_{}'.format(side, pos_tag)] = 1
+                            '{}_pos_{}'.format(side, pos_tag)] = 1
 
             # averaged word2vec vectors
             token_vector = np.mean(token_vectors, axis=0)
@@ -198,10 +218,20 @@ def get_linkage_features(corpus_file, detector, vectors, truth, perfect=False):
 
             cands.append((label, indices))
 
+    if select in (PN, POS, NUM):
+        r = FILTER_SET[select]
+        for x in X:
+            for k in list(x):
+                if r.match(k) is None:
+                    del x[k]
+
     # transform features
     X = DictVectorizer().fit_transform(X).toarray()
     X = preprocessing.scale(X)
-    X = np.concatenate((X, Xext), axis=1)
+    if select is None:
+        X = np.concatenate((X, Xext), axis=1)
+    elif select == GLOVE:
+        X = Xext
 
     print('detect {} correct linkages'.format(correct_count))
 
@@ -241,25 +271,28 @@ def main():
     cands, Y, X = get_linkage_features(corpus_file,
                                        detector,
                                        vectors,
-                                       truth)
+                                       truth,
+                                       select=args.select)
 
     output_file(args.output, cands, Y, X)
 
     if args.check_accuracy:
         check_accuracy(X, Y)
 
-    print('process perfect file')
+    if args.perfect_output:
+        print('process perfect file')
 
-    cands, Y, X = get_linkage_features(corpus_file,
-                                       detector,
-                                       vectors,
-                                       truth,
-                                       perfect=True)
+        cands, Y, X = get_linkage_features(corpus_file,
+                                           detector,
+                                           vectors,
+                                           truth,
+                                           select=args.select,
+                                           perfect=True)
 
-    output_file(args.perfect_output, cands, Y, X)
+        output_file(args.perfect_output, cands, Y, X)
 
-    if args.check_accuracy:
-        check_accuracy(X, Y)
+        if args.check_accuracy:
+            check_accuracy(X, Y)
 
 if __name__ == '__main__':
     main()
