@@ -11,8 +11,6 @@ import corpus
 
 from collections import defaultdict
 
-from sklearn.feature_extraction import DictVectorizer
-from sklearn import preprocessing
 from sklearn import svm
 from sklearn import cross_validation
 
@@ -115,7 +113,6 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
 
             gm = features.geometric_dists_mean(t_indices)
             feature_vector['geo_mean'] = gm
-            # feature_vector['-'.join(tags)] = 1
 
             token_vectors = []
             left_vectors = []
@@ -147,6 +144,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
                 right_vectors.append(features.get_vector(
                     r_index + 1, pos_tokens, vectors))
 
+                # POS
+
                 # POS tag involved
                 for i in token_indices:
                     pos_tag = features.get_POS(pos_tokens[i])
@@ -160,7 +159,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
                         feature_vector[
                             '{}_pos_{}'.format(side, pos_tag)] = 1
 
-            # averaged word2vec vectors
+            # GLOVE
+
             token_vector = np.mean(token_vectors, axis=0)
             left_vector = np.mean(left_vectors, axis=0)
             right_vector = np.mean(right_vectors, axis=0)
@@ -168,6 +168,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             Xext.append(np.concatenate((token_vector,
                                         left_vector,
                                         right_vector)))
+
+            # NUM
 
             feature_vector['num_of_overlapped'] = len(overlapped)
             feature_vector['num_of_crossed'] = len(crossed)
@@ -186,28 +188,13 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['left_bundary'] = lbound
             feature_vector['right_bundary'] = rbound
 
-            # syntactic features
-
-            # self
-            me = corpus.ParseHelper.self_category(
-                parsed, [l_index, r_index])
-            sf = corpus.ParseHelper.label(me)
+            # P & N
+            sf, p, lsb, rsb = features.PN_feature_set(
+                parsed, l_index, r_index)
             feature_vector['self_{}'.format(sf)] = 1
-
-            # parent
-            p = corpus.ParseHelper.label(
-                corpus.ParseHelper.parent_category(me))
             feature_vector['parent_{}'.format(p)] = 1
-
-            # left
-            sb = corpus.ParseHelper.label(
-                corpus.ParseHelper.left_category(me))
-            feature_vector['left_sb_{}'.format(sb)] = 1
-
-            # right
-            sb = corpus.ParseHelper.label(
-                corpus.ParseHelper.right_category(me))
-            feature_vector['right_sb_{}'.format(sb)] = 1
+            feature_vector['left_sb_{}'.format(lsb)] = 1
+            feature_vector['right_sb_{}'.format(rsb)] = 1
 
             X.append(feature_vector)
             if indices in truth[label]:
@@ -218,20 +205,14 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
 
             cands.append((label, indices))
 
-    if select in (PN, POS, NUM):
-        r = FILTER_SET[select]
-        for x in X:
-            for k in list(x):
-                if r.match(k) is None:
-                    del x[k]
-
-    # transform features
-    X = DictVectorizer().fit_transform(X).toarray()
-    X = preprocessing.scale(X)
-    if select is None:
-        X = np.concatenate((X, Xext), axis=1)
-    elif select == GLOVE:
+    if select == GLOVE:
         X = Xext
+    elif select is None:
+        X = features.transform_features(X, Xext)
+    else:
+        # PN, POS, NUM
+        features.filter_features(X, FILTER_SET[select])
+        X = features.transform_features(X)
 
     print('detect {} correct linkages'.format(correct_count))
 

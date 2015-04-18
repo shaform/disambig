@@ -3,7 +3,11 @@ import re
 
 import numpy as np
 
+import corpus
+
 from collections import defaultdict
+
+from sklearn.feature_extraction import DictVectorizer
 
 
 def geometric_dists_mean(token_indices_list):
@@ -23,9 +27,10 @@ def geometric_mean(xs):
         mean **= (1 / len(xs))
         return mean
 
-_rB = re.compile(r'[!?:;,！？：；，。]')
 
+_rB = re.compile(r'[!?:;,！？：；，。]')
 _rE = re.compile(r'[！？；。]')
+
 
 def num_of_sentences(tokens):
     num = 0
@@ -33,6 +38,7 @@ def num_of_sentences(tokens):
         if _rE.search(t) is not None:
             num += 1
     return num
+
 
 def lr_boundary(left, right, tokens):
 
@@ -61,10 +67,11 @@ def min_boundary(left, right, tokens):
                 _rB.search(tokens[right]) is not None):
             return offset
 
+
 def word_skips(token_indices_list, tokens):
     for a, b in zip(token_indices_list, token_indices_list[1:]):
         d = 0
-        for i in range(a[-1]+1, b[0]):
+        for i in range(a[-1] + 1, b[0]):
             if _rB.search(tokens[i]) is not None:
                 d += 1
         yield d
@@ -97,6 +104,27 @@ def get_POS(s):
     return s.split('/')[1]
 
 
+def PN_feature_set(parsed, l_index, r_index):
+    # self
+    me = corpus.ParseHelper.self_category(
+        parsed, [l_index, r_index])
+    sf = corpus.ParseHelper.label(me)
+
+    # parent
+    p = corpus.ParseHelper.label(
+        corpus.ParseHelper.parent_category(me))
+
+    # left
+    lsb = corpus.ParseHelper.label(
+        corpus.ParseHelper.left_category(me))
+
+    # right
+    rsb = corpus.ParseHelper.label(
+        corpus.ParseHelper.right_category(me))
+
+    return sf, p, lsb, rsb
+
+
 def load_features_table(path, tlabel_transform=lambda x: x):
     print('loading features table')
 
@@ -110,3 +138,18 @@ def load_features_table(path, tlabel_transform=lambda x: x):
                                        feature_vector))
 
     return feature_tbl
+
+
+def transform_features(X, Xext=None):
+    X = DictVectorizer().fit_transform(X).toarray()
+    X = preprocessing.scale(X)
+    if Xext is not None:
+        X = np.concatenate((X, Xext), axis=1)
+    return X
+
+
+def filter_features(X, r):
+    for x in X:
+        for k in list(x):
+            if r.match(k) is None:
+                del x[k]

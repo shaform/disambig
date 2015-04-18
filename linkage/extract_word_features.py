@@ -11,9 +11,6 @@ import corpus
 
 from collections import defaultdict
 
-from sklearn.feature_extraction import DictVectorizer
-from sklearn import preprocessing
-
 
 PN = 'PN'
 POS = 'POS'
@@ -99,15 +96,8 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                 if feature_vector['num_of_choices'] == 1:
                     total_words += 1
 
-                    # which character is used
-                    # feature_vector[cnnct] = 1
-
                     indices = list(linkage.token_indices(pos))
                     l_index, r_index = features.token_offsets(indices)
-
-                    # distance to boundary
-                    # feature_vector['dist_to_boundary'] = features.min_boundary(
-                    #    indices[0], indices[-1], tokens)
 
                     lbound, rbound = features.lr_boundary(
                         indices[0], indices[-1], tokens)
@@ -147,26 +137,13 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                         pos_tag = features.get_POS(pos_tokens[r_index + 1])
                         feature_vector['right_pos_{}'.format(pos_tag)] = 1
 
-                    # self
-                    me = corpus.ParseHelper.self_category(
-                        parsed, [l_index, r_index])
-                    sf = corpus.ParseHelper.label(me)
+                    # P & N
+                    sf, p, lsb, rsb = features.PN_feature_set(
+                        parsed, l_index, r_index)
                     feature_vector['self_{}'.format(sf)] = 1
-
-                    # parent
-                    p = corpus.ParseHelper.label(
-                        corpus.ParseHelper.parent_category(me))
                     feature_vector['parent_{}'.format(p)] = 1
-
-                    # left
-                    sb = corpus.ParseHelper.label(
-                        corpus.ParseHelper.left_category(me))
-                    feature_vector['left_sb_{}'.format(sb)] = 1
-
-                    # right
-                    sb = corpus.ParseHelper.label(
-                        corpus.ParseHelper.right_category(me))
-                    feature_vector['right_sb_{}'.format(sb)] = 1
+                    feature_vector['left_sb_{}'.format(lsb)] = 1
+                    feature_vector['right_sb_{}'.format(rsb)] = 1
 
                     X.append(feature_vector)
                     cands.append(cand)
@@ -211,20 +188,14 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                 f.write('{}\t{}\t0\t0\n'.format(
                     l, word))
 
-    if select in (PN, POS, NUM):
-        r = FILTER_SET[select]
-        for x in X:
-            for k in list(x):
-                if r.match(k) is None:
-                    del x[k]
-
-    # transform features
-    X = DictVectorizer().fit_transform(X).toarray()
-    X = preprocessing.scale(X)
-    if select is None:
-        X = np.concatenate((X, Xext), axis=1)
-    elif select == GLOVE:
+    if select == GLOVE:
         X = Xext
+    elif select is None:
+        X = features.transform_features(X, Xext)
+    else:
+        # PN, POS, NUM
+        features.filter_features(X, FILTER_SET[select])
+        X = features.transform_features(X)
 
     return cands, Y, X
 
