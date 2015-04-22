@@ -119,7 +119,8 @@ def POS_feature_set(feature_vector, indices, pos_tokens):
             feature_vector['{}_pos_{}'.format(label, pos_tag)] = 1
 
 
-def PN_feature_set(feature_vector, parsed, l_index, r_index):
+def PN_feature_set(feature_vector, parsed, l_index, r_index, *,
+                   full=False, cnnct=None):
     # self
     me = corpus.ParseHelper.self_category(
         parsed, [l_index, r_index])
@@ -137,10 +138,22 @@ def PN_feature_set(feature_vector, parsed, l_index, r_index):
     rsb = corpus.ParseHelper.label(
         corpus.ParseHelper.right_category(me))
 
-    feature_vector['self_{}'.format(sf)] = 1
-    feature_vector['parent_{}'.format(p)] = 1
-    feature_vector['left_sb_{}'.format(lsb)] = 1
-    feature_vector['right_sb_{}'.format(rsb)] = 1
+    components = [
+        'self_{}'.format(sf),
+        'parent_{}'.format(p),
+        'left_sb_{}'.format(lsb),
+        'right_sb_{}'.format(rsb),
+    ]
+
+    if full:
+        components.append('cnnct_{}'.format(cnnct))
+
+    for x in components:
+        feature_vector[x] = 1
+
+    if full:
+        for x, y in zip(components, components[1:]):
+            feature_vector['{}_{}'.format(x, y)] = 1
 
 
 def load_features_table(path, tlabel_transform=lambda x: x):
