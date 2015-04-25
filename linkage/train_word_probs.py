@@ -10,6 +10,9 @@ from collections import defaultdict
 from sklearn.linear_model import LogisticRegression
 
 
+TOTAL_WORDS = 12523
+
+
 def process_commands():
     parser = argparse.ArgumentParser()
     parser.add_argument('--word_features', required=True,
@@ -30,6 +33,9 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
     lr = LogisticRegression()
     word_probs = {}
 
+    if check_accuracy and ambig_path is not None:
+        word_ambig = evaluate.WordAmbig(ambig_path)
+
     stats = evaluate.FoldStats()
     for i in fhelper.folds():
         print('\ntraining word probability for fold', i, '...')
@@ -42,8 +48,13 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
         lr.fit(X, Y)
         Yt = lr.predict(Xt)
 
+        truth_count_for_fold = None
+        if word_ambig is not None:
+            truth_count_for_fold = word_ambig.count_fold(fhelper.test_set(i))
+
         if check_accuracy:
-            stats.compute_fold(labels, Yt, Yt_truth)
+            stats.compute_fold(labels, Yt, Yt_truth,
+                               truth_count=truth_count_for_fold)
 
         for label, y_truth, y in zip(labels, Yt_truth, Yt):
             word_probs[label] = (y_truth, y)
@@ -51,13 +62,12 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
     if check_accuracy:
         print('== done ==')
 
-        if ambig_path is not None:
-            word_ambig = evaluate.WordAmbig(ambig_path)
+        if word_ambig is not None:
             truth_count = len(word_ambig)
         else:
             truth_count = None
 
-        stats.print_total(truth_count=truth_count)
+        stats.print_total(truth_count=truth_count, total=TOTAL_WORDS)
 
         if word_ambig is not None:
             stats.print_distribution(word_ambig)

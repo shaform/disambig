@@ -9,12 +9,15 @@ def f1(recall, prec):
     return 2 * recall * prec / (recall + prec)
 
 
-def print_scores(recall, prec, label=None):
+def print_scores(recall, prec, *, fscore=None, label=None):
     if label is not None:
         print(label + '\t', end='')
 
+    if fscore is None:
+        fscore = f1(recall, prec)
+
     print('prec: {}\trecall: {}\t f1: {}'.format(
-          prec, recall, f1(recall, prec)))
+          prec, recall, fscore))
 
 _HEADERS = [
     'causality',
@@ -91,7 +94,7 @@ def print_sense_scores(Y, Yp, label):
                       ])
 
     for header, score in zip(headers, scores):
-        score_line = '\t'.join('{:.02}'.format(s) for s in score[:3])
+        score_line = '\t'.join('{:.04}'.format(s) for s in score[:3])
         if len(score) > 3:
             score_line += '\t{}'.format(score[3])
         print('{}\t{}'.format(header, score_line))
@@ -132,18 +135,27 @@ class WordAmbig(object):
     def __len__(self):
         return len(self.total_ambig)
 
+    def count_fold(self, labels):
+        total = 0
+        labels = set(labels)
+        for label, _ in self.total_ambig:
+            if label in labels:
+                total += 1
+        return total
+
 
 class FoldStats(object):
 
     def __init__(self, threshold=0.5, show_fold=False):
         self.stats = defaultdict(int)
+        self.cv_stats = defaultdict(list)
         self.tp_labels = set()
         self.fp_labels = set()
         self.fn_labels = set()
         self.threshold = threshold
         self.show_fold = show_fold
 
-    def compute_fold(self, labels, Yp, Y):
+    def compute_fold(self, labels, Yp, Y, truth_count=None):
         f_stats = defaultdict(int)
 
         tp = tn = fp = fn = 0
@@ -172,16 +184,48 @@ class FoldStats(object):
         self.stats['fp'] += fp
         self.stats['fn'] += fn
 
-    def print_total(self, truth_count=None):
-        print_stats(self.stats['tp'], self.stats[
-                    'tn'], self.stats['fp'], self.stats['fn'], label='Total')
-
         if truth_count is not None:
+            fn = truth_count - tp
+
+        recall, prec = tp / (tp + fn), tp / (tp + fp)
+        self.cv_stats['prec'].append(prec)
+        self.cv_stats['recall'].append(recall)
+        self.cv_stats['f1'].append(f1(recall, prec))
+
+    def print_total(self, truth_count=None, total=None):
+
+        if truth_count is None:
+            print_stats(self.stats['tp'],
+                        self.stats['tn'],
+                        self.stats['fp'],
+                        self.stats['fn'],
+                        label='Total')
+
+        elif truth_count is not None:
             print_stats(self.stats['tp'],
                         self.stats['tn'],
                         self.stats['fp'],
                         truth_count - self.stats['tp'],
                         label='Overall Total')
+
+            if total is not None:
+                my_total = (self.stats['tp'] + self.stats['tn'] +
+                            self.stats['fp'] + self.stats['tp'])
+                remain = total - my_total
+                print_stats(self.stats['tp'],
+                            self.stats['tn'] + remain,
+                            self.stats['fp'],
+                            truth_count - self.stats['tp'],
+                            label='Overall Total for All')
+        self.print_cv_total()
+
+    def print_cv_total(self):
+        print('\nCV macro:')
+        l = len(self.cv_stats['prec'])
+        prec = sum(self.cv_stats['prec']) / l
+        recall = sum(self.cv_stats['recall']) / l
+        fscore = sum(self.cv_stats['f1']) / l
+        print_scores(recall, prec, fscore=fscore)
 
     def print_distribution(self, ambig, function=lambda x: x):
         '''Display correct word distribution by ambiguity'''
