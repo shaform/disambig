@@ -159,34 +159,32 @@ def predict_sense(labels, Yp, Y, lr, feature_set, truth):
             slabels.append(label)
 
     sYp = lr.predict(sX)
-    return slabels, sYp, sY
+    return slabels, list(sYp), sY
 
 
-def append_sense_items(all_slabels, all_sY, all_sYp, feature_tbl, truth):
-    s = set(all_slabels)
-    print('original connectives size:', len(s), len(all_slabels))
+def append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels):
+    s = set(slabels)
+    ps = set(plabels)
 
     for label, all_features in feature_tbl.items():
-        for l, y, x in all_features:
-            if (label, l) not in s:
-                s.add((label, l))
-                if y == 0:
-                    # non-discourse
-                    all_sY.append(NON_DIS)
-                else:
-                    all_sY.append(truth.linkage_type[label][l])
-                all_sYp.append(NON_DIS)
-
-    print('appended connectives size:', len(s), len(all_sY))
+        if label in plabels:
+            for l, y, x in all_features:
+                if (label, l) not in s:
+                    s.add((label, l))
+                    if y == 0:
+                        # non-discourse
+                        sY.append(NON_DIS)
+                    else:
+                        sY.append(truth.linkage_type[label][l])
+                    sYp.append(NON_DIS)
 
     for label, types in truth.linkage_type.items():
-        for l, t in types.items():
-            if (label, l) not in s:
-                s.add((label, l))
-                all_sY.append(t)
-                all_sYp.append(NON_DIS)
-
-    print('total truth connectives size:', len(s), len(all_sY))
+        if label in plabels:
+            for l, t in types.items():
+                if (label, l) not in s:
+                    s.add((label, l))
+                    sY.append(t)
+                    sYp.append(NON_DIS)
 
 
 def get_feature_set(feature_tbl):
@@ -326,11 +324,12 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
         print('compute sense statistics...', end='', flush=True)
         train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl, truth)
         slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set, truth)
+        append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels)
         print('done!')
 
-        all_slabels.extend(slabels)
-        all_sYp.extend(sYp)
-        all_sY.extend(sY)
+        all_slabels.append(slabels)
+        all_sYp.append(sYp)
+        all_sY.append(sY)
 
     print('== done ==')
 
@@ -351,7 +350,6 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     wstats.print_total(truth_count=len(words))
 
     print('Sense stats:')
-    append_sense_items(all_slabels, all_sY, all_sYp, feature_tbl, truth)
     evaluate.print_sense_scores(all_sY, all_sYp, 'Overall')
 
 

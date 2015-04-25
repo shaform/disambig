@@ -41,18 +41,38 @@ _ALL_HEADERS = [
 ]
 
 
-def print_sense_scores(Y, Yp, label):
+def compute_cv_sense_scores(Ys, Yps):
+    total_scores = []
+    for Y, Yp in zip(Ys, Yps):
+        # get list of p, r, f
+        scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
+        # convert to list
+        scores = [list(ss) for ss in scores]
+        # convert to list of (p, r, f)
+        scores = list(list(ss) for ss in zip(*scores))
+        total_scores.append(scores)
+
+    total_scores = [list(ss) for ss in list(np.mean(total_scores, axis=0))]
+
+    # add one column for num
+    for scores in total_scores:
+        scores.append(0)
+
+    return total_scores
+
+
+def print_sense_scores(Ys, Yps, label):
     print()
     print(label, ':')
+
+    scores = compute_cv_sense_scores(Ys, Yps)
+    Y = list(np.concatenate(Ys, axis=0))
+    Yp = list(np.concatenate(Yps, axis=0))
 
     print('length', len(Y))
     print('Relation\tPrec\tRecall\tF1\tcases')
 
-    scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
-    scores.append([0] * len(scores[0]))
-    scores = [list(ss) for ss in scores]
-    scores = list(list(ss) for ss in zip(*scores))
-
+    # count num
     for y in Y:
         scores[y][-1] += 1
 
@@ -62,11 +82,7 @@ def print_sense_scores(Y, Yp, label):
             metrics.recall_score(Y, Yp, average='micro'),
             metrics.f1_score(Y, Yp, average='micro'),
         ],
-        [
-            metrics.precision_score(Y, Yp, average='macro'),
-            metrics.recall_score(Y, Yp, average='macro'),
-            metrics.f1_score(Y, Yp, average='macro'),
-        ]
+        np.mean(scores, axis=0)[:3]
     ])
 
     if len(scores) == len(_HEADERS):
