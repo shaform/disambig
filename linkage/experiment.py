@@ -41,9 +41,23 @@ def process_commands():
     return parser.parse_args()
 
 
+def count_fold(cdict, labels):
+    total = 0
+    for l in labels:
+        total += cdict[l]
+    return total
+
+
 def count_linkage(path):
+    total_count = 0
+    count_by_label = defaultdict(int)
     with open(path, 'r') as f:
-        return len([l for l in f])
+        for l in f:
+            label = l.split('\t', 1)[0]
+            total_count += 1
+            count_by_label[label] += 1
+
+    return total_count, count_by_label
 
 
 def load_linkage_probs(path):
@@ -184,11 +198,11 @@ def get_feature_set(feature_tbl):
 
 
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
-                     linkage_counts, linkage_probs, word_ambig,
+                     linkage_counts, lcdict, linkage_probs, word_ambig,
                      cut, *, words=None, perfect=False):
-    stats = evaluate.FoldStats(show_fold=True)
+    stats = evaluate.FoldStats(show_fold=False)
     # pstats = evaluate.FoldStats(show_fold=True)
-    wstats = evaluate.FoldStats(show_fold=True)
+    wstats = evaluate.FoldStats(show_fold=False)
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
     # pType = {}
@@ -295,7 +309,8 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             #     pYp.append(0)
 
         print('\nLinkage stats:')
-        stats.compute_fold(labels, Yp, Y)
+        stats.compute_fold(labels, Yp, Y,
+                           truth_count=count_fold(lcdict, plabels))
 
         # print('\nParagraph stats:')
         # pstats.compute_fold(plabels, pYp, pY)
@@ -305,7 +320,8 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                 wYp.append(1)
             else:
                 wYp.append(0)
-        wstats.compute_fold(wlabels, wYp, wY)
+        wstats.compute_fold(wlabels, wYp, wY,
+                            truth_count=word_ambig.count_fold(plabels))
 
         print('compute sense statistics...', end='', flush=True)
         train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl, truth)
@@ -351,7 +367,7 @@ def main():
     feature_tbl = features.load_features_table(
         args.linkage_features, lambda x: tuple(x.split('-')))
 
-    linkage_counts = count_linkage(args.linkage)
+    linkage_counts, lcdict = count_linkage(args.linkage)
     linkage_probs = load_linkage_probs(args.linkage_probs)
 
     word_ambig = evaluate.WordAmbig(args.word_ambig)
@@ -384,6 +400,7 @@ def main():
         truth,
         detector,
         linkage_counts,
+        lcdict,
         ranking_probs,
         word_ambig,
         cut=cut,
