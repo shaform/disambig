@@ -192,7 +192,7 @@ class FoldStats(object):
         self.cv_stats['recall'].append(recall)
         self.cv_stats['f1'].append(f1(recall, prec))
 
-    def print_total(self, truth_count=None, total=None):
+    def print_total(self, truth_count=None):
 
         if truth_count is None:
             print_stats(self.stats['tp'],
@@ -208,15 +208,6 @@ class FoldStats(object):
                         truth_count - self.stats['tp'],
                         label='Overall Total')
 
-            if total is not None:
-                my_total = (self.stats['tp'] + self.stats['tn'] +
-                            self.stats['fp'] + self.stats['tp'])
-                remain = total - my_total
-                print_stats(self.stats['tp'],
-                            self.stats['tn'] + remain,
-                            self.stats['fp'],
-                            truth_count - self.stats['tp'],
-                            label='Overall Total for All')
         self.print_cv_total()
 
     def print_cv_total(self):

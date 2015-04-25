@@ -10,9 +10,6 @@ from collections import defaultdict
 from sklearn.linear_model import LogisticRegression
 
 
-TOTAL_WORDS = 12523
-
-
 def process_commands():
     parser = argparse.ArgumentParser()
     parser.add_argument('--word_features', required=True,
@@ -67,7 +64,7 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
         else:
             truth_count = None
 
-        stats.print_total(truth_count=truth_count, total=TOTAL_WORDS)
+        stats.print_total(truth_count=truth_count)
 
         if word_ambig is not None:
             stats.print_distribution(word_ambig)
