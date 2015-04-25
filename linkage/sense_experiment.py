@@ -54,12 +54,17 @@ def main():
     Yp = cross_validation.cross_val_predict(
         lr, X, Y, cv=folds, n_jobs=10)
 
-    evaluate.print_sense_scores(Y, Yp, 'Overall')
+    Ys, Yps = [], []
+    for _, test_idx in folds:
+        Ys.append(list(Y[test_idx]))
+        Yps.append(list(Yp[test_idx]))
 
-    Y = [y for i, y in enumerate(Y) if labels[i] in truth.linkage_with_types]
-    Yp = [y for i, y in enumerate(Yp) if labels[i] in truth.linkage_with_types]
-    evaluate.print_sense_scores(Y, Yp, 'Only ambiguous')
-    print('Total cases: {}'.format(len(Y)))
+    evaluate.print_sense_scores(Ys, Yps, 'Overall')
+
+    # Y = [y for i, y in enumerate(Y) if labels[i] in truth.linkage_with_types]
+    # Yp = [y for i, y in enumerate(Yp) if labels[i] in truth.linkage_with_types]
+    # evaluate.print_sense_scores(Y, Yp, 'Only ambiguous')
+    # print('Total cases: {}'.format(len(Y)))
 
 if __name__ == '__main__':
     main()
