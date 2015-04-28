@@ -37,6 +37,7 @@ def process_commands():
                         help='whether to do perfect experiment')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
+    parser.add_argument('--threshold', type=float, default=0.6)
 
     return parser.parse_args()
 
@@ -388,7 +389,7 @@ def main():
     if args.perfect:
         cut = lambda x, _: any((x[0], w) not in words for w in x[1])
     else:
-        cut = lambda x, _: linkage_probs[x] < 0.6
+        cut = lambda x, _: linkage_probs[x] < args.threshold
 
     print('ranking model')
     cross_validation(

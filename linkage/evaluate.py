@@ -16,7 +16,7 @@ def print_scores(recall, prec, *, fscore=None, label=None):
     if fscore is None:
         fscore = f1(recall, prec)
 
-    print('prec: {}\trecall: {}\t f1: {}'.format(
+    print('prec: {:.04}\trecall: {:.04}\tf1: {:.04}'.format(
           prec, recall, fscore))
 
 _HEADERS = [
@@ -217,7 +217,7 @@ class FoldStats(object):
                         self.stats['fn'],
                         label='Total')
 
-        elif truth_count is not None:
+        else:
             print_stats(self.stats['tp'],
                         self.stats['tn'],
                         self.stats['fp'],
