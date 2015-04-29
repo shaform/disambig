@@ -125,7 +125,7 @@ l_train_perfect_linkage_probs:
 
 # 5. run the experiments
 l_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --check_accuracy #--threshold 6.0
 
 # 5.5 run the perfect experiments
 l_perfect_experiment:
