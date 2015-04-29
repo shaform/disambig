@@ -5,7 +5,7 @@
 # 19 ambiguous words
 # 156 ambiguous pairs
 # 41 meanings
-# 41 meanings > 0 sentences
+# 41 meanings >= 1 sentences
 # after filtering
 # 19 ambiguous words
 # 41 ambiguous meanings
