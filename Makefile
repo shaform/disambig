@@ -7,6 +7,7 @@ TMP = /tmp
 CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
 CLUE_CORPUS_CNNCT = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt
 LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
+CNNCT_CORPUS = $(DISAMBIG_BIG_DATA)/connective/corpus.txt
 CLUE_SENT_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.sent.vectors.txt
 CLUE_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.word.vectors.txt
 
@@ -54,6 +55,11 @@ c_sent_word2vec:
 c_sent_extract:
 	grep '^@@SSENT' $(TMP)/4300W.sent.vectors.txt | sort > $(CLUE_SENT_VECTOR)
 	cat $(TMP)/4300W.sent.vectors.txt | sed '1d' | grep -v '^@@' > $(CLUE_WORD_VECTOR)
+
+c_preprocess:
+	grep '^@@SSENT' $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.filtered.txt
+	python3 $(DISAMBIG_PRG)/utility/connective/preprocess.py --input $(TMP)/4300W.filtered.txt --output $(CNNCT_CORPUS)
+
 
 d_convert_cdtb_encoding:
 	python3 $(DISAMBIG_PRG)/utility/common/gb_to_utf8.py --input $(CDTB_RAW_GB_DIR) --output $(CDTB_RAW_DIR)

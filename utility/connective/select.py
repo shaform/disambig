@@ -12,7 +12,7 @@ def process_commands():
                         help='raw pair connectives sql dump file')
     parser.add_argument('--output', required=True,
                         help='output connectives files')
-    parser.add_argument('--threshold', default=500,
+    parser.add_argument('--threshold', default=0,
                         help='minimum sentences found to be kept')
 
     return parser.parse_args()
