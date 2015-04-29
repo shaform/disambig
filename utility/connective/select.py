@@ -12,7 +12,7 @@ def process_commands():
                         help='raw pair connectives sql dump file')
     parser.add_argument('--output', required=True,
                         help='output connectives files')
-    parser.add_argument('--threshold', default=0,
+    parser.add_argument('--threshold', default=1,
                         help='minimum sentences found to be kept')
 
     return parser.parse_args()
@@ -73,7 +73,7 @@ def filter_words(path, words, threshold):
     for wt in list(counts):
         if counts[wt] < threshold:
             del counts[wt]
-    print('{} meanings > {} sentences'.format(len(counts), threshold))
+    print('{} meanings >= {} sentences'.format(len(counts), threshold))
 
     for w, tags in words.items():
         for tag in list(tags):
