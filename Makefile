@@ -1,5 +1,7 @@
 GLOVE = $(DISAMBIG_TOOL)/glove
 WORD2VEC = $(DISAMBIG_TOOL)/word2vec
+LIBSVM_TRAIN = $(DISAMBIG_TOOL)/liblinear/train
+LIBSVM_SCALE = $(DISAMBIG_TOOL)/libsvm/train-scale
 TMP = /tmp
 
 ## -- data preprocessing -- ##
@@ -54,12 +56,11 @@ c_sent_word2vec:
 # extract desired vectors to files
 c_sent_extract:
 	grep '^@@SSENT' $(TMP)/4300W.sent.vectors.txt | sort > $(CLUE_SENT_VECTOR)
-	cat $(TMP)/4300W.sent.vectors.txt | sed '1d' | grep -v '^@@' > $(CLUE_WORD_VECTOR)
+	cat $(TMP)/4300W.sent.vectors.txt | sed '1d' | grep -v '^@@S' > $(CLUE_WORD_VECTOR)
 
 c_preprocess:
 	grep '^@@SSENT' $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.filtered.txt
 	python3 $(DISAMBIG_PRG)/utility/connective/preprocess.py --input $(TMP)/4300W.filtered.txt --output $(CNNCT_CORPUS)
-
 
 d_convert_cdtb_encoding:
 	python3 $(DISAMBIG_PRG)/utility/common/gb_to_utf8.py --input $(CDTB_RAW_GB_DIR) --output $(CDTB_RAW_DIR)
