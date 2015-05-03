@@ -20,10 +20,10 @@ self-corrected offsets
 651 P10 R4
 125 P4 R3
 052 P5 R5
-595 P4 R2
+595 P4 R2 # implicit
 595 P4 R3
 238 P5 R9
-643 P3 R2
+643 P3 R2 # implicit
 643 P3 R3
 
 # implicit
