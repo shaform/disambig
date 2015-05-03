@@ -67,8 +67,8 @@ d_convert_cdtb_encoding:
 
 # extract cdtb linkages
 d_extract_cdtb_linkage:
-	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --tag $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
-	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --input $(LCORPUS_FILE) --output $(TMP)/linkage.tmp.txt --tag $(TMP)/linkage.raw.txt
+	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --connective $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
+	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --input $(LCORPUS_FILE) --output $(TMP)/linkage.tmp.txt --connective $(TMP)/linkage.raw.txt
 	uniq $(TMP)/linkage.tmp.txt > $(LINKAGE_FILE)
 
 # generate parser structure

@@ -8,7 +8,7 @@ def process_commands():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', required=True,
                         help='segmented text')
-    parser.add_argument('--tag', required=True,
+    parser.add_argument('--connective', required=True,
                         help='linkage text')
     parser.add_argument('--output', required=True)
 
@@ -44,6 +44,7 @@ _TP = {
 
 if __name__ == '__main__':
     args = process_commands()
+    print('\nstart align')
     d = {}
     with open(args.input, 'r') as f:
         for l in f:
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     total = 0
     not_fit = 0
     cross = 0
-    with open(args.tag, 'r') as f, open(args.output, 'w') as of:
+    with open(args.connective, 'r') as f, open(args.output, 'w') as of:
         for l in f:
             tag, conncts, pos_s, tp = l.rstrip('\n').split('\t')
             conncts = conncts.split('-')
