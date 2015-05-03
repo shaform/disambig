@@ -67,7 +67,7 @@ d_convert_cdtb_encoding:
 
 # extract cdtb linkages
 d_extract_cdtb_linkage:
-	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --tag $(TMP)/linkage.raw.txt
+	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --tag $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
 	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --input $(LCORPUS_FILE) --output $(TMP)/linkage.tmp.txt --tag $(TMP)/linkage.raw.txt
 	uniq $(TMP)/linkage.tmp.txt > $(LINKAGE_FILE)
 
@@ -92,6 +92,9 @@ d_filter_w2v_vectors:
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LW2V_VECTOR_FILE)
 
 ## -- connective experiments -- ##
+
+c_experiment:
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/connective/experiment.py --corpus $(CNNCT_CORPUS) --output $(TMP)/test.txt # --train $(LIBSVM_TRAIN) --scale $(LIBSVM_SCALE)
 
 ## -- linkage experiments -- ##
 

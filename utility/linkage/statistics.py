@@ -114,9 +114,11 @@ def stat_all_detect(detector, corpus_file, truth):
     print('length')
     print_distribution(length_count)
 
+    # linking ambiguity among truth
     print('disambig truth')
     print_distribution(count_by_num(disambig_count))
 
+    # linking ambiguity among all candidates
     print('disambig cand')
     print_distribution(count_by_num(cand_disambig_count))
 
