@@ -17,6 +17,7 @@ CDTB_RAW_GB_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus
 CDTB_RAW_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus-utf8
 LCORPUS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.txt
 LINKAGE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage.txt
+ARGUMENT_FILE = $(DISAMBIG_DATA)/linkage/cdtb_argument.txt
 
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
@@ -68,7 +69,7 @@ d_convert_cdtb_encoding:
 # extract cdtb linkages
 d_extract_cdtb_linkage:
 	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --connective $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
-	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --input $(LCORPUS_FILE) --output $(TMP)/linkage.tmp.txt --connective $(TMP)/linkage.raw.txt
+	python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --corpus $(LCORPUS_FILE) --linkage_output $(TMP)/linkage.tmp.txt --argument_output $(ARGUMENT_FILE) --connective $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
 	uniq $(TMP)/linkage.tmp.txt > $(LINKAGE_FILE)
 
 # generate parser structure

@@ -6,11 +6,14 @@ import sys
 
 def process_commands():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', required=True,
+    parser.add_argument('--corpus', required=True,
                         help='segmented text')
     parser.add_argument('--connective', required=True,
                         help='linkage text')
-    parser.add_argument('--output', required=True)
+    parser.add_argument('--linkage_output', required=True)
+    parser.add_argument('--arg', required=True,
+                        help='argument text')
+    parser.add_argument('--argument_output', required=True)
 
     return parser.parse_args()
 
@@ -45,18 +48,18 @@ _TP = {
 if __name__ == '__main__':
     args = process_commands()
     print('\nstart align')
-    d = {}
-    with open(args.input, 'r') as f:
+    corpus = {}
+    with open(args.corpus, 'r') as f:
         for l in f:
-            tag, r = l.rstrip('\n').split('\t', 1)
-            d[tag] = r.split(' ')
+            label, r = l.rstrip('\n').split('\t', 1)
+            corpus[label] = r.split(' ')
 
     total = 0
     not_fit = 0
     cross = 0
-    with open(args.connective, 'r') as f, open(args.output, 'w') as of:
+    with open(args.connective, 'r') as f, open(args.linkage_output, 'w') as of:
         for l in f:
-            tag, conncts, pos_s, tp = l.rstrip('\n').split('\t')
+            label, conncts, pos_s, tp = l.rstrip('\n').split('\t')
             conncts = conncts.split('-')
             pos_s = [x.split(':') for x in pos_s.split('-')]
             pos_s = [(int(x), int(y)) for x, y in pos_s]
@@ -69,7 +72,7 @@ if __name__ == '__main__':
                 text = ''
 
                 extracted = []
-                for i, x in enumerate(d[tag]):
+                for i, x in enumerate(corpus[label]):
                     end = start + len(x)
                     if start >= pos[0] and start < pos[1] or end > pos[0] and end <= pos[1]:
                         text += x
@@ -101,13 +104,13 @@ if __name__ == '__main__':
 
                 else:
                     print('wrong')
-                    print(d[tag])
-                    print(tag, text, connct)
+                    print(corpus[label])
+                    print(label, text, connct)
                     print(pos)
                     break
             else:
                 # successful
-                of.write('{}\t{}\t{}\t{}\n'.format(tag, '-'.join(conncts),
+                of.write('{}\t{}\t{}\t{}\n'.format(label, '-'.join(conncts),
                                                    '-'.join(detected_pos),
                          _TP[tp]))
 
