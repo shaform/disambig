@@ -10,6 +10,8 @@ import xml.etree.ElementTree as etree
 from collections import defaultdict
 from glob import glob
 
+from statistics import print_distribution
+
 Explicit = '\u663e\u5f0f\u5173\u7cfb'
 Rsym = re.compile(r'\W')
 
@@ -45,13 +47,6 @@ def extract(article, l, r):
         return '[None]'
     else:
         return text
-
-
-def print_distribution(d):
-    for k, v in sorted(d.items()):
-        print('{}:\t{}'.format(k, v))
-    print('total:\t{}'.format(sum(d.values())))
-    print()
 
 
 def extract_linkages(dir_path, pout, cout, aout):

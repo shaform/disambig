@@ -6,25 +6,28 @@ from collections import defaultdict
 from nltk.tree import ParentedTree
 
 
+def load_corpus(path, postprocess=lambda x: x.split()):
+    d = {}
+    with open(path) as f:
+        for l in f:
+            label, tokens = l.rstrip('\n').split('\t')
+            d[label] = postprocess(tokens)
+    return d
+
+
 class CorpusFile(object):
 
     def __init__(self, corpus_path, pos_path=None, parse_path=None):
-        self.corpus = {}
+        self.corpus = load_corpus(corpus_path)
         self.pos_corpus = {}
-        for path, d in ((corpus_path, self.corpus), (pos_path, self.pos_corpus)):
-            if path is not None:
-                with open(path, 'r') as f:
-                    for l in f:
-                        label, tokens = l.rstrip('\n').split('\t')
-                        tokens = tokens.split()
-                        d[label] = tokens
+        if pos_path is not None:
+            self.pos_corpus = load_corpus(pos_path)
 
         self.parse_corpus = {}
         if parse_path is not None:
-            with open(parse_path, 'r') as f:
-                for l in f:
-                    label, parsed = l.rstrip('\n').split('\t')
-                    self.parse_corpus[label] = ParentedTree.fromstring(parsed)
+            self.parse_corpus = load_corpus(
+                parse_path,
+                lambda x: ParentedTree.fromstring(x))
 
 
 class VectorFile(object):
