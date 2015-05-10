@@ -64,6 +64,7 @@ if __name__ == '__main__':
     argument_stats = defaultdict(int)
     connective_stats = defaultdict(int)
     mapping_stats = defaultdict(int)
+    mapping_examples = defaultdict(int)
     before_stats = defaultdict(int)
     end_stats = defaultdict(int)
     in_range = out_range = 0
@@ -139,6 +140,12 @@ if __name__ == '__main__':
                             abnormal += 1
 
                     # -- extract arguments -- #
+                    def print_current():
+                        print('{} P{} R{}'.format(
+                            fname,
+                            p.get('ID'),
+                            r.get('ID')
+                        ))
 
                     sent_indices = [get_offsets(i)
                                     for i in r.get('SentencePosition').split('|')]
@@ -148,11 +155,7 @@ if __name__ == '__main__':
                     incorrect = False
                     if len(sent_indices) != len(sents):
                         print('# sentence num not matched')
-                        print('{} P{} R{}'.format(
-                            fname,
-                            p.get('ID'),
-                            r.get('ID')
-                        ))
+                        print_current()
                         incorrect = True
 
                     for index, sent in zip(sent_indices, sents):
@@ -172,6 +175,10 @@ if __name__ == '__main__':
                     if is_explicit:
                         argument_stats[len(sents)] += 1
                         connective_stats[len(conncts)] += 1
+                        if (len(conncts) > 1 and len(conncts) < len(sents)
+                                or len(conncts) == 1 and len(sents) > 2):
+                            mapping_examples[r.get('RelationType')] += 1
+
                         mapping_stats['{}-{}'.format(
                             len(conncts),
                             len(sents))] += 1
@@ -193,11 +200,7 @@ if __name__ == '__main__':
                                 print('##not in', before, start)
                                 print('##not in', end, after)
                                 print(extract(article, x, y))
-                                print('{} P{} R{}'.format(
-                                    fname,
-                                    p.get('ID'),
-                                    r.get('ID')
-                                ))
+                                print_current()
 
                 if detected_num_of_paragraph > 1:
                     print('strange {} {} {}'.format(
@@ -211,6 +214,7 @@ if __name__ == '__main__':
     print_distribution(connective_stats)
     print('\nmapping stats:')
     print_distribution(mapping_stats)
+    print(mapping_examples)
     # print('\nbefore stats:')
     # print_distribution(before_stats)
     # print('\nend stats:')
