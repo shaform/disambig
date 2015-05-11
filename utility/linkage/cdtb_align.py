@@ -119,10 +119,12 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 start = offset_to_index(detected_indices[0].split(',', 1)[0])
                 end = offset_to_index(detected_indices[-1].split(',', 1)[-1])
                 new_offsets = '-'.join(detected_indices)
-                connective_range[(label, rindices)] = (start, end, new_offsets)
+                rtype = _TP[tp]
+                connective_range[(label, rindices)] = (
+                    start, end, new_offsets, rtype)
                 of.write('{}\t{}\t{}\t{}\n'.format(label, '-'.join(conncts),
                                                    new_offsets,
-                                                   _TP[tp]))
+                                                   rtype))
 
     print('connective components:')
     print_distribution(stats)
@@ -142,7 +144,7 @@ def align_arguments(corpus, arg_path, argument_output, ranges):
             sents = sents.split('|')
             indices = extract_indices(indices, sep='|')
             tokens = corpus[label]
-            *current_range, new_offsets = ranges[(label, cnnct_offsets)]
+            *current_range, new_offsets, rtype = ranges[(label, cnnct_offsets)]
 
             # extract arguments
             detected_indices = []
@@ -186,8 +188,10 @@ def align_arguments(corpus, arg_path, argument_output, ranges):
                 back_stats[total] += 1
 
                 # output
-                of.write('{}\t{}\n'.format(
+                of.write('{}\t{}\t{}\t{}\n'.format(
                     label,
+                    new_offsets,
+                    rtype,
                     '-'.join(detected_indices)
                 ))
 
