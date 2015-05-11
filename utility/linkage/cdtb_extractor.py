@@ -119,12 +119,14 @@ def extract_linkages(dir_path, pout, cout, aout):
                             print(connct, article[x:y])
 
                     rtype = r.get('RelationType')
+                    cnnct_offsets = '-'.join('{}:{}'.format(x, y)
+                                             for x, y in indices)
 
                     cout.write('cdtb-{}-{}\t{}\t{}\t{}\n'.format(
                         fname,
                         p.get('ID'),
                         '-'.join(conncts),
-                        '-'.join('{}:{}'.format(x, y) for x, y in indices),
+                        cnnct_offsets,
                         rtype
                     ))
 
@@ -180,9 +182,10 @@ def extract_linkages(dir_path, pout, cout, aout):
                     else:
                         range_stats['out_range'] += 1
 
-                    aout.write('cdtb-{}-{}\t{}\t{}\n'.format(
+                    aout.write('cdtb-{}-{}\t{}\t{}\t{}\n'.format(
                         fname,
                         p.get('ID'),
+                        cnnct_offsets,
                         '|'.join(sents),
                         '|'.join('{}:{}'.format(x, y) for x, y in sent_indices)
                     ))
