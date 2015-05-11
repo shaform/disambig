@@ -120,9 +120,11 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 end = offset_to_index(detected_indices[-1].split(',', 1)[-1])
                 new_offsets = '-'.join(detected_indices)
                 rtype = _TP[tp]
+                connective = '-'.join(conncts)
                 connective_range[(label, rindices)] = (
-                    start, end, new_offsets, rtype)
-                of.write('{}\t{}\t{}\t{}\n'.format(label, '-'.join(conncts),
+                    start, end, new_offsets, connective, rtype)
+                of.write('{}\t{}\t{}\t{}\n'.format(label,
+                                                   connective,
                                                    new_offsets,
                                                    rtype))
 
@@ -144,7 +146,7 @@ def align_arguments(corpus, arg_path, argument_output, ranges):
             sents = sents.split('|')
             indices = extract_indices(indices, sep='|')
             tokens = corpus[label]
-            *current_range, new_offsets, rtype = ranges[(label, cnnct_offsets)]
+            *curr_range, new_offsets, connective, rtype = ranges[(label, cnnct_offsets)]
 
             # extract arguments
             detected_indices = []
@@ -176,20 +178,21 @@ def align_arguments(corpus, arg_path, argument_output, ranges):
 
                 # count ranges
                 total = 0
-                for i in range(start, current_range[0]):
+                for i in range(start, curr_range[0]):
                     if tokens[i] in _ENDs:
                         total += 1
                 front_stats[total] += 1
 
                 total = 0
-                for i in range(current_range[1] + 1, end):
+                for i in range(curr_range[1] + 1, end):
                     if tokens[i] in _ENDs:
                         total += 1
                 back_stats[total] += 1
 
                 # output
-                of.write('{}\t{}\t{}\t{}\n'.format(
+                of.write('{}\t{}\t{}\t{}\t{}\n'.format(
                     label,
+                    connective,
                     new_offsets,
                     rtype,
                     '-'.join(detected_indices)

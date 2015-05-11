@@ -2,6 +2,7 @@ GLOVE = $(DISAMBIG_TOOL)/glove
 WORD2VEC = $(DISAMBIG_TOOL)/word2vec
 LIBSVM_TRAIN = $(DISAMBIG_TOOL)/liblinear/train
 LIBSVM_SCALE = $(DISAMBIG_TOOL)/libsvm/train-scale
+CRFSUITE = $(DISAMBIG_TOOL)/crfsuite/frontend/crfsuite
 TMP = /tmp
 
 ## -- data preprocessing -- ##
@@ -145,6 +146,10 @@ l_perfect_experiment:
 # 6. run sense experiment
 l_sense_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE)
+
+# 7. run argument experiment
+l_arg_experiment:
+	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE)  --vector $(LVECTOR_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt
 
 l_statistics:
 	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/statistics.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE)
