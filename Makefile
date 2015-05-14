@@ -70,7 +70,7 @@ d_convert_cdtb_encoding:
 # extract cdtb linkages
 d_extract_cdtb_linkage:
 	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_extractor.py --input $(CDTB_RAW_DIR) --output $(TMP)/corpus.raw.txt --connective $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
-	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --corpus $(LCORPUS_FILE) --linkage_output $(TMP)/linkage.tmp.txt --argument_output $(ARGUMENT_FILE) --connective $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_align.py --corpus $(LCORPUS_FILE) --linkage_output $(TMP)/linkage.tmp.txt --argument_output $(ARGUMENT_FILE) --connective $(TMP)/linkage.raw.txt --arg $(TMP)/linkage.arg.txt --argument_text $(TMP)/arg_text.txt
 	uniq $(TMP)/linkage.tmp.txt > $(LINKAGE_FILE)
 
 # generate parser structure

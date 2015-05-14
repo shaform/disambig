@@ -3,6 +3,7 @@ import argparse
 
 from collections import defaultdict
 
+from argument import _ENDs
 from corpus import load_corpus
 from statistics import print_distribution
 
@@ -32,8 +33,6 @@ _TP = {
     '例证关系': 3,
     '评价关系': 3,
 }
-
-_ENDs = ('?' '”', '…', '──', '、', '。', '」', '！', '，', '：', '；', '？')
 
 
 def extract_span(text, index, tokens, stats=None):
@@ -122,7 +121,7 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 rtype = _TP[tp]
                 connective = '-'.join(conncts)
                 connective_range[(label, rindices)] = (
-                    start, end, new_offsets, connective, rtype)
+                    start, end, detected_indices, connective, rtype)
                 of.write('{}\t{}\t{}\t{}\n'.format(label,
                                                    connective,
                                                    new_offsets,
@@ -134,78 +133,101 @@ def align_connectives(corpus, cnnct_path, linkage_output):
     return connective_range
 
 
-def align_arguments(corpus, arg_path, argument_output, ranges):
+def append_argument_text(out, tokens, cnnct_indices, arg_indices, start, end):
+    arg_starts = set()
+    arg_ends = set()
+    for index in arg_indices:
+        indices = index.split(',')
+        arg_starts.add(int(offset_to_index(indices[0])))
+        arg_ends.add(int(offset_to_index(indices[-1])))
+
+    cnnct_starts = set()
+    cnnct_ends = set()
+    for index in cnnct_indices:
+        indices = index.split(',')
+        cnnct_starts.add(int(offset_to_index(indices[0])))
+        cnnct_ends.add(int(offset_to_index(indices[-1])))
+
+    for i in range(start, end + 1):
+        token = tokens[i]
+        if i > start:
+            if tokens[i - 1] in _ENDs and token not in _ENDs:
+                out.write('\t')
+            else:
+                out.write(' ')
+        if i in arg_starts:
+            out.write('_[')
+        if i in cnnct_starts:
+            out.write('_<')
+
+        out.write(token)
+
+        if i in cnnct_ends:
+            out.write('>_')
+        if i in arg_ends:
+            out.write(']_')
+    out.write('\n')
+
+
+def align_arguments(corpus, arg_path, arg_output, ranges, arg_text):
     stats = defaultdict(int)
     end_stats = defaultdict(int)
-    front_stats = defaultdict(int)
-    back_stats = defaultdict(int)
 
-    with open(arg_path, 'r') as f, open(argument_output, 'w') as of:
-        for l in f:
-            label, cnnct_offsets, sents, indices = l.rstrip('\n').split('\t')
-            sents = sents.split('|')
-            indices = extract_indices(indices, sep='|')
-            tokens = corpus[label]
-            *curr_range, new_offsets, connective, rtype = ranges[(label, cnnct_offsets)]
+    with open(arg_path, 'r') as f, open(arg_output, 'w') as of:
+        with open(arg_text, 'w') as arg_f:
+            for l in f:
+                label, cnnct_identity, sents, indices = l.rstrip(
+                    '\n').split('\t')
+                sents = sents.split('|')
+                indices = extract_indices(indices, sep='|')
+                tokens = corpus[label]
+                r = ranges[(label, cnnct_identity)]
+                *cnnct_range, cnnct_indices, cnnct, rtype = r
 
-            # extract arguments
-            detected_indices = []
-            for sent, index in zip(sents, indices):
-                detected_index, text_span = extract_span(
-                    sent,
-                    index,
-                    tokens,
-                    stats)
-                if detected_index is None:
-                    print('wrong')
-                    print(tokens)
-                    print(label, text_span, sent)
-                    print(index)
-                    break
+                # extract arguments
+                detected_indices = []
+                for sent, index in zip(sents, indices):
+                    detected_index, text_span = extract_span(
+                        sent,
+                        index,
+                        tokens,
+                        stats)
+                    if detected_index is None:
+                        print('wrong')
+                        print(tokens)
+                        print(label, text_span, sent)
+                        print(index)
+                        break
+                    else:
+                        detected_indices.append(','.join(detected_index))
                 else:
-                    detected_indices.append(','.join(detected_index))
-            else:
-                # successful
-                # collect stats
-                for index in detected_indices:
-                    end = offset_to_index(index.split(',')[0]) - 1
-                    if end > 0:
+                    # successful
+                    for index in detected_indices:
+                        end = offset_to_index(index.split(',')[0]) - 1
+                        if end > 0:
+                            end_stats[tokens[end]] += 1
+                    start = offset_to_index(detected_indices[0].split(',')[0])
+                    end = offset_to_index(detected_indices[-1].split(',')[-1])
+                    if end + 1 < len(tokens):
                         end_stats[tokens[end]] += 1
-                start = offset_to_index(detected_indices[0].split(',')[0])
-                end = offset_to_index(detected_indices[-1].split(',')[-1])
-                if end + 1 < len(tokens):
-                    end_stats[tokens[end]] += 1
 
-                # count ranges
-                total = 0
-                for i in range(start, curr_range[0]):
-                    if tokens[i] in _ENDs:
-                        total += 1
-                front_stats[total] += 1
+                    # output
+                    of.write('{}\t{}\t{}\t{}\t{}\n'.format(
+                        label,
+                        cnnct,
+                        '-'.join(cnnct_indices),
+                        rtype,
+                        '-'.join(detected_indices)
+                    ))
 
-                total = 0
-                for i in range(curr_range[1] + 1, end):
-                    if tokens[i] in _ENDs:
-                        total += 1
-                back_stats[total] += 1
-
-                # output
-                of.write('{}\t{}\t{}\t{}\t{}\n'.format(
-                    label,
-                    connective,
-                    new_offsets,
-                    rtype,
-                    '-'.join(detected_indices)
-                ))
+                    append_argument_text(
+                        arg_f, tokens, cnnct_indices, detected_indices,
+                        start, end)
 
     # print('arguments:')
     # print_distribution(stats)
     print('argument ends:')
     print_distribution(end_stats)
-    print('argument fronts:')
-    print_distribution(front_stats)
-    print('argument backs:')
-    print_distribution(back_stats)
 
 
 def main():
@@ -215,7 +237,8 @@ def main():
     corpus = load_corpus(args.corpus)
 
     ranges = align_connectives(corpus, args.connective, args.linkage_output)
-    align_arguments(corpus, args.arg, args.argument_output, ranges)
+    align_arguments(corpus, args.arg, args.argument_output, ranges,
+                    arg_text=args.argument_text)
 
 
 def process_commands():
@@ -228,6 +251,7 @@ def process_commands():
     parser.add_argument('--arg', required=True,
                         help='argument text')
     parser.add_argument('--argument_output', required=True)
+    parser.add_argument('--argument_text', required=True)
 
     return parser.parse_args()
 

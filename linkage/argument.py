@@ -5,6 +5,25 @@ from collections import defaultdict
 _ENDs = ('?' '”', '…', '──', '、', '。', '」', '！', '，', '：', '；', '？')
 
 
+def get_EDU_offsets(tokens):
+    start = 0
+    tlen = len(tokens)
+    offsets = []
+    for i, token in enumerate(tokens):
+        if token in _ENDs:
+            offsets.append((start, i + 1))
+            start = i + 1
+            if start == tlen:
+                break
+    else:
+        offsets.append((start, tlen))
+    return offsets
+
+
+def extract_EDU_features(tokens, pos_tokens, vectors, arg, offsets):
+    pass
+
+
 def extract_features(tokens, pos_tokens, vectors, arg):
     cnnct, rtype, c_indices, a_indices = arg
     tlen = len(tokens)
@@ -29,12 +48,15 @@ def extract_features(tokens, pos_tokens, vectors, arg):
         s.add('RTYPE-{}'.format(rtype))
     for idx in c_indices:
         tfeatures[idx].add('IS_CNNCT')
-    for s, t, pt in zip(tfeatures, tokens, pos_tokens):
+    for i, (s, t, pt) in enumerate(zip(tfeatures, tokens, pos_tokens)):
         s.add(t.replace('\\', r'\\').replace(':', r'\:'))
+        s.add('POS-{}'.format(pt.split('/')[-1]))
         if t in _ENDs:
             s.add('IS_END')
-        for i, v in enumerate(vectors.get(pt)):
-            s.add('VEC-{}:{}'.format(i, v))
+            if i + 1 < tlen:
+                tfeatures[i + 1].add('PREV_END')
+        # for i, v in enumerate(vectors.get(pt)):
+        #    s.add('VEC-{}:{}'.format(i, v))
 
     return tlabels, tfeatures
 
