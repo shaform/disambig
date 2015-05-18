@@ -102,7 +102,7 @@ class ParseHelper(object):
         return ParentedTree.fromstring(s)
 
     @staticmethod
-    def self_category(root, indices):
+    def self_category(root, indices, exact=True):
         l = min(indices)
         r = max(indices) + 1
         position = root.treeposition_spanning_leaves(l, r)
@@ -115,7 +115,7 @@ class ParseHelper(object):
             else:
                 break
 
-        if len(node.leaves()) > len(indices):
+        if exact and len(node.leaves()) > len(indices):
             return None
         else:
             return node

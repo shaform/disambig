@@ -157,6 +157,10 @@ def append_argument_text(out, tokens, cnnct_indices, arg_indices, start, end):
                 out.write(' ')
         if i in arg_starts:
             out.write('_[')
+            if tokens[i] in _ENDs:
+                print('not continuus detected')
+                print(i, tokens[i], i + 1, tokens[i + 1])
+                print(tokens)
         if i in cnnct_starts:
             out.write('_<')
 
@@ -166,6 +170,10 @@ def append_argument_text(out, tokens, cnnct_indices, arg_indices, start, end):
             out.write('>_')
         if i in arg_ends:
             out.write(']_')
+            if not (i == len(tokens) - 1 or tokens[i + 1] not in _ENDs):
+                print('not continuus detected')
+                print(i, tokens[i], i + 1, tokens[i + 1])
+                print(tokens)
     out.write('\n')
 
 

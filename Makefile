@@ -8,6 +8,7 @@ TMP = /tmp
 ## -- data preprocessing -- ##
 
 CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
+CLUE_CORPUS_NP = $(DISAMBIG_BIG_DATA)/raw/NoPOSuniqClueWeb4300W.txt
 CLUE_CORPUS_CNNCT = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt
 LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
 CNNCT_CORPUS = $(DISAMBIG_BIG_DATA)/connective/corpus.txt
@@ -24,6 +25,7 @@ GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
 GCCS_FILE = $(TMP)/ccs.txt
 GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
+GGLOVE_NP_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.no_pos.txt
 
 NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
 
@@ -37,6 +39,16 @@ d_glove_prep:
 d_glove:
 	$(GLOVE)/glove -save-file $(TMP)/glove.vectors -threads 24 -input-file $(GCCS_FILE) -iter 15 -x-max 10 -vector-size 400 -binary 0 -vocab-file $(GVOCAB_FILE) -verbose 2 
 	mv $(TMP)/glove.vectors.txt $(GGLOVE_VECTOR_FILE)
+
+d_np_glove_prep:
+	$(GLOVE)/vocab_count -min-count 5 -verbose 2 < $(CLUE_CORPUS_NP) > $(GVOCAB_FILE).np
+	$(GLOVE)/cooccur -memory 20 -vocab-file $(GVOCAB_FILE).np -verbose 2 -window-size 15 < $(CLUE_CORPUS_NP) > $(GCC_FILE).np
+	$(GLOVE)/shuffle -memory 20 -verbose 2 < $(GCC_FILE).np > $(GCCS_FILE).np
+
+# create glove
+d_np_glove:
+	$(GLOVE)/glove -save-file $(TMP)/glove.np.vectors -threads 24 -input-file $(GCCS_FILE).np -iter 15 -x-max 10 -vector-size 400 -binary 0 -vocab-file $(GVOCAB_FILE).np -verbose 2 
+	mv $(TMP)/glove.np.vectors.txt $(GGLOVE_NP_VECTOR_FILE)
 
 # convert cdtb to utf-8
 l_convert_cdtb_to_utf8:
@@ -149,7 +161,13 @@ l_sense_experiment:
 
 # 7. run argument experiment
 l_arg_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE)  --vector $(LVECTOR_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt
+	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt
 
 l_statistics:
 	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/statistics.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE)
+
+## -- test experiments -- ##
+
+t_arg_crf:
+	for i in 0 1 2 3 4 5 6 7 8 9 ; do $(CRFSUITE) learn -m $(TMP)/crf.model.$$i $(TMP)/crftrain.txt.$$i ; done
+	for i in 0 1 2 3 4 5 6 7 8 9 ; do $(CRFSUITE) tag -qt -m $(TMP)/crf.model.$$i $(TMP)/crftest.txt.$$i ; done
