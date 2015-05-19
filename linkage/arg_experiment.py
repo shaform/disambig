@@ -72,19 +72,35 @@ def extract_crf_data(labels, data_set):
     return crf_data
 
 
-def output_crf(fout, crf_data):
-    for _, _, tlabels, tfeatures in crf_data:
-        for i, label in enumerate(tlabels):
-            # if not argument.is_argument_label(label):
-            #     continue
+def get_ranges(crf_data):
+    ranges = []
+    for _, _, labels, _ in crf_data:
+        start = labels.index(argument._BEGIN)
+        try:
+            end = labels.index(argument._AFTER)
+        except:
+            end = len(labels)
+        ranges.append((start, end))
+    return ranges
+
+
+def output_crf(fout, crf_data, ranges=None):
+    for i, (_, _, tlabels, tfeatures) in enumerate(crf_data):
+        r = ranges[i] if ranges is not None else None
+        for j, label in enumerate(tlabels):
+            if r is not None:
+                if j < r[0]:
+                    continue
+                elif j >= r[1]:
+                    break
             fout.write('{}\t{}\n'.format(
                 label,
-                '\t'.join(tfeatures[i])
+                '\t'.join(tfeatures[j])
             ))
         fout.write('\n')
 
 
-def load_predict(fin):
+def load_predict(fin, ranges):
     arg_spans = []
     labels = []
     for l in fin:
@@ -93,21 +109,25 @@ def load_predict(fin):
             prob = float(l.split()[1])
 
             last = argument._BEFORE
-            idx = 0
         elif l:
             label = int(l.split(':')[0])
 
             labels.append(label)
 
             last = label
-            idx += 1
         else:
             argument.correct_labels(labels)
             argument.check_continuity(labels)
-            arg_spans.append(argument.labels_to_offsets(labels))
+            idx = len(arg_spans)
+            start = ranges[idx][0] if ranges is not None else 0
+            arg_spans.append(argument.labels_to_offsets(
+                labels,
+                start=start))
             labels = []
     else:
         assert(len(labels) == 0)
+        if ranges is not None:
+            assert(len(arg_spans) == len(ranges))
     return arg_spans
 
 
@@ -124,34 +144,41 @@ def test(fhelper, args, test_args, corpus_file,
         path = '{}.{}'.format(train_path, i)
         mpath = '{}.{}'.format(model_path, i)
         crf_data = extract_crf_data(fhelper.train_set(i), data_set)
-        test_crf_data.append(extract_crf_data(fhelper.test_set(i), test_set))
+        crf_ranges = get_ranges(crf_data) if keep_boundary else None
         with open(path, 'w') as train_file:
             output_crf(
                 train_file,
-                crf_data
+                crf_data,
+                crf_ranges
             )
+        test_crf_data.append(extract_crf_data(fhelper.test_set(i), test_set))
+
         processes.append(subprocess.Popen([crf, 'learn', '-m', mpath, path]))
     for p in processes:
         p.wait()
 
     print('start testing')
     processes = []
+    test_crf_ranges = [None] * len(test_crf_data)
+    if keep_boundary:
+        test_crf_ranges = [get_ranges(crf_data) for crf_data in test_crf_data]
     for i in fhelper.folds():
         mpath = '{}.{}'.format(model_path, i)
         path = '{}.{}'.format(test_path, i)
         with open(path, 'w') as test_file:
             output_crf(
                 test_file,
-                test_crf_data[i]
+                test_crf_data[i],
+                test_crf_ranges[i]
             )
 
         processes.append(
             subprocess.Popen([crf, 'tag', '-pi', '-m', mpath, path],
                              stdout=subprocess.PIPE, universal_newlines=True))
     cv_stats = defaultdict(list)
-    for crf_data, p in zip(test_crf_data, processes):
+    for crf_data, ranges, p in zip(test_crf_data, test_crf_ranges, processes):
         p.wait()
-        arg_spans = load_predict(p.stdout)
+        arg_spans = load_predict(p.stdout, ranges)
         assert(len(arg_spans) == len(crf_data))
 
         correct = 0
@@ -170,10 +197,12 @@ def main():
         args.corpus, args.corpus_pos, args.corpus_parse)
     fhelper = corpus.FoldsHelper(args.folds)
 
+    keep_boundary = args.keep_boundary and args.argument == args.argument_test
+
     test(fhelper, arguments, test_arguments,
          corpus_file,
          args.train, args.test, args.model, args.crfsuite,
-         args.keep_boundary)
+         keep_boundary)
 
 
 if __name__ == '__main__':
