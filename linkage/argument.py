@@ -288,6 +288,12 @@ class ArgumentFile(object):
         for c_indices, (c, r, s, a) in self.argument[plabel].items():
             yield c, r, s, c_indices, a
 
+    def get_a_indices(self, plabel, arg):
+        if arg[3] in self.argument[plabel]:
+            return self.argument[plabel][arg[3]][-1]
+        else:
+            return []
+
     def __getitem__(self, plabel):
         """Get arguments of a paragraph."""
         return self.argument[plabel]
