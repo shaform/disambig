@@ -7,6 +7,11 @@ from argument import _ENDs
 from corpus import load_corpus
 from statistics import print_distribution
 
+_SP = {
+    '逐层切分': 0,
+    '并列切分': 1
+}
+
 _TP = {
     # causality
     '因果关系': 0,
@@ -93,7 +98,7 @@ def align_connectives(corpus, cnnct_path, linkage_output):
 
     with open(cnnct_path, 'r') as f, open(linkage_output, 'w') as of:
         for l in f:
-            label, conncts, rindices, tp = l.rstrip('\n').split('\t')
+            label, conncts, rindices, tp, sp = l.rstrip('\n').split('\t')
             conncts = conncts.split('-')
             indices = extract_indices(rindices)
 
@@ -119,9 +124,10 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 end = offset_to_index(detected_indices[-1].split(',', 1)[-1])
                 new_offsets = '-'.join(detected_indices)
                 rtype = _TP[tp]
+                stype = _SP[sp]
                 connective = '-'.join(conncts)
                 connective_range[(label, rindices)] = (
-                    start, end, detected_indices, connective, rtype)
+                    start, end, detected_indices, connective, rtype, stype)
                 of.write('{}\t{}\t{}\t{}\n'.format(label,
                                                    connective,
                                                    new_offsets,
@@ -190,7 +196,7 @@ def align_arguments(corpus, arg_path, arg_output, ranges, arg_text):
                 indices = extract_indices(indices, sep='|')
                 tokens = corpus[label]
                 r = ranges[(label, cnnct_identity)]
-                *cnnct_range, cnnct_indices, cnnct, rtype = r
+                *cnnct_range, cnnct_indices, cnnct, rtype, stype = r
 
                 # extract arguments
                 detected_indices = []
@@ -220,11 +226,12 @@ def align_arguments(corpus, arg_path, arg_output, ranges, arg_text):
                         end_stats[tokens[end]] += 1
 
                     # output
-                    of.write('{}\t{}\t{}\t{}\t{}\n'.format(
+                    of.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(
                         label,
                         cnnct,
                         '-'.join(cnnct_indices),
                         rtype,
+                        stype,
                         '-'.join(detected_indices)
                     ))
 

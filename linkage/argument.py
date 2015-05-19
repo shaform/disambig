@@ -127,7 +127,7 @@ def path_features(s, parsed, from_pos, to_pos):
 
 
 def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
-    cnnct, rtype, c_indices, a_indices = arg
+    cnnct, rtype, stype, c_indices, a_indices = arg
     cnncts = cnnct.split('-')
     tlen = len(EDUs)
     tlabels = get_EDU_labels(EDUs, a_indices)
@@ -139,6 +139,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
     for s in tfeatures:
         s.add('CNNCT-' + cnnct)
         s.add('RTYPE-{}'.format(rtype))
+        s.add('STYPE-{}'.format(stype))
         s.add('CNNCT_NUM:{}'.format(cnnct.count('-') + 1))
 
     connective_features(tfeatures, EDUs, c_indices)
@@ -226,7 +227,7 @@ def check_continuity(labels):
 
 
 def extract_features(tokens, pos_tokens, arg):
-    cnnct, rtype, c_indices, a_indices = arg
+    cnnct, rtype, stype, c_indices, a_indices = arg
     tlen = len(tokens)
 
     tfeatures = [set() for _ in range(tlen)]
@@ -270,7 +271,7 @@ class ArgumentFile(object):
         with open(argument_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
 
-        for plabel, cnnct, cnnct_indices, rtype, arg_indices in items:
+        for plabel, cnnct, cnnct_indices, rtype, stype, arg_indices in items:
             cnnct_token_indices = []
             for lst in linkage.list_of_token_indices(
                     cnnct_indices.split('-')):
@@ -281,11 +282,11 @@ class ArgumentFile(object):
 
             assert(cnnct_token_indices not in self.argument[plabel])
             self.argument[plabel][cnnct_token_indices] = (
-                cnnct, rtype, arg_token_indices)
+                cnnct, rtype, stype, arg_token_indices)
 
     def arguments(self, plabel):
-        for c_indices, (cnnct, rtype, a_indices) in self.argument[plabel].items():
-            yield cnnct, rtype, c_indices, a_indices
+        for c_indices, (c, r, s, a) in self.argument[plabel].items():
+            yield c, r, s, c_indices, a
 
     def __getitem__(self, plabel):
         """Get arguments of a paragraph."""

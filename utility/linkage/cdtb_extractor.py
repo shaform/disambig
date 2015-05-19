@@ -119,15 +119,17 @@ def extract_linkages(dir_path, pout, cout, aout):
                             print(connct, article[x:y])
 
                     rtype = r.get('RelationType')
+                    stype = r.get('StructureType')
                     cnnct_offsets = '-'.join('{}:{}'.format(x, y)
                                              for x, y in indices)
 
-                    cout.write('cdtb-{}-{}\t{}\t{}\t{}\n'.format(
+                    cout.write('cdtb-{}-{}\t{}\t{}\t{}\t{}\n'.format(
                         fname,
                         p.get('ID'),
                         '-'.join(conncts),
                         cnnct_offsets,
-                        rtype
+                        rtype,
+                        stype
                     ))
 
                     # generate role stats
@@ -171,7 +173,7 @@ def extract_linkages(dir_path, pout, cout, aout):
                     connective_stats[len(conncts)] += 1
                     if (len(conncts) > 1 and len(conncts) < len(sents)
                             or len(conncts) == 1 and len(sents) > 2):
-                        mapping_examples[r.get('RelationType')] += 1
+                        mapping_examples[r.get('StructureType')] += 1
 
                     mapping_stats['{}-{}'.format(
                         len(conncts),
