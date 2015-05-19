@@ -60,6 +60,44 @@ def get_EDU_labels(EDUs, arg_indices):
     return labels
 
 
+def correct_labels(labels):
+    stage = 0
+    for i, l in enumerate(labels):
+        if stage == 0:
+            if is_argument_label(l):
+                labels[i] = _BEGIN
+                stage = 1
+        elif stage == 1:
+            if not is_argument_label(l):
+                labels[i] = _AFTER
+                stage = 2
+        else:
+            labels[i] = _AFTER
+
+
+def labels_to_offsets(labels, start=0):
+    args = set()
+    stage = 0
+    last = None
+    for i, l in enumerate(labels):
+        if stage == 0:
+            if l == _BEGIN:
+                last = i + start
+                stage = 1
+        elif stage == 1:
+            if l != _INSIDE:
+                now = i + start
+                args.add((last, now))
+                if l == _AFTER:
+                    break
+                else:
+                    last = now
+    else:
+        if stage == 1:
+            args.add((last, len(labels) + start))
+    return args
+
+
 def get_end_index(span, tokens):
     start, end = span
     end -= 1
@@ -198,7 +236,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
         for c_pos in c_poses:
             path_features(s, parsed, c_pos, me_pos)
 
-    return tlabels, tfeatures
+    return c_indices, tlabels, tfeatures
 
 
 def check_continuity(labels):
@@ -267,6 +305,8 @@ class ArgumentFile(object):
 
     def __init__(self, argument_path):
         self.argument = defaultdict(dict)
+        self.argument_truth = defaultdict(dict)
+        self.edu_truth = defaultdict(lambda: defaultdict(set))
 
         with open(argument_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
@@ -283,6 +323,23 @@ class ArgumentFile(object):
             assert(cnnct_token_indices not in self.argument[plabel])
             self.argument[plabel][cnnct_token_indices] = (
                 cnnct, rtype, stype, arg_token_indices)
+            self.argument_truth[plabel][
+                cnnct_token_indices] = arg_token_indices
+
+    def init_truth(self, corpus_file):
+        assert(len(self.edu_truth) == 0)
+        for l, data in self.argument_truth.items():
+            EDUs = corpus_file.edu_corpus[l]
+            tlen = len(corpus_file.corpus[l])
+            edu_to_index = {edu[0]: i for i, edu in enumerate(EDUs)}
+            edu_to_index[tlen] = len(EDUs)
+            for cl, a_indices in data.items():
+                arg_offsets = self.edu_truth[l][cl]
+                for indices in a_indices:
+                    start, end = indices[0], indices[-1] + 1
+                    idx = edu_to_index[start], edu_to_index[end]
+                    assert(idx not in arg_offsets)
+                    arg_offsets.add(idx)
 
     def arguments(self, plabel):
         for c_indices, (c, r, s, a) in self.argument[plabel].items():

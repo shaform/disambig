@@ -1,6 +1,8 @@
 """I/O for corpus files"""
 import numpy
 
+import argument
+
 from collections import defaultdict
 
 from nltk.tree import ParentedTree
@@ -28,6 +30,10 @@ class CorpusFile(object):
             self.parse_corpus = load_corpus(
                 parse_path,
                 lambda x: ParentedTree.fromstring(x))
+
+        self.edu_corpus = {}
+        for l, tokens in self.corpus.items():
+            self.edu_corpus[l] = argument.get_EDU_offsets(tokens)
 
 
 class VectorFile(object):
@@ -59,7 +65,7 @@ class FoldsHelper(object):
                 self.data_folds[i].add(plabel)
 
     def folds(self):
-        return self.data_folds
+        return sorted(self.data_folds)
 
     def train_set(self, fold):
         for key, s in self.data_folds.items():

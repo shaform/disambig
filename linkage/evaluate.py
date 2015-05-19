@@ -160,6 +160,10 @@ class WordAmbig(object):
         return total
 
 
+class ArgStats(object):
+    pass
+
+
 class FoldStats(object):
 
     def __init__(self, threshold=0.5, show_fold=False):
