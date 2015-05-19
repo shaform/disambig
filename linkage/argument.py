@@ -84,16 +84,51 @@ def collect_cnnct_positions(c_indices):
 def connective_features(tfeatures, EDUs, c_indices):
     c_start = c_indices[0][0]
     c_end = c_indices[-1][-1]
-    for s, edu in zip(tfeatures, EDUs):
+    c_start_EDU = None
+    c_end_EDU = None
+    for i, edu in enumerate(EDUs):
         start, end = edu
-        if end <= c_start:
+        if start > c_end:
+            break
+        c_end_EDU = i
+        if end > c_start and c_start_EDU is None:
+            c_start_EDU = i
+
+    for i, s in enumerate(tfeatures):
+        if i < c_start_EDU:
             s.add('BEFORE_CNNCT')
-        if start >= c_end:
+            s.add('BEFORE_CNNCT-{}'.format(c_start_EDU - i))
+        if i > c_end_EDU:
             s.add('AFTER_CNNCT')
+            s.add('AFTER_CNNCT-{}'.format(i - c_end_EDU))
+
+
+def path_features(s, parsed, from_pos, to_pos):
+    lca = -1
+    for i, (a, b) in enumerate(zip(from_pos, to_pos)):
+        if a == b:
+            lca = i
+        else:
+            break
+
+    fname = 'PATH-'
+    items = []
+    for i in range(len(from_pos), lca, -1):
+        items.append(parsed[from_pos[:i]].label())
+    fname += '^'.join(items)
+
+    items = []
+    for i in range(lca + 2, len(to_pos) + 1):
+        items.append(parsed[to_pos[:i]].label())
+    if len(items) > 0:
+        fname += 'v' + 'v'.join(items)
+
+    s.add(fname)
 
 
 def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
     cnnct, rtype, c_indices, a_indices = arg
+    cnncts = cnnct.split('-')
     tlen = len(EDUs)
     tlabels = get_EDU_labels(EDUs, a_indices)
     arg_offsets = get_argument_offsets(a_indices)
@@ -107,6 +142,17 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
         s.add('CNNCT_NUM:{}'.format(cnnct.count('-') + 1))
 
     connective_features(tfeatures, EDUs, c_indices)
+    c_spans = []
+    if len(c_indices) > 1:
+        c_spans.append((c_indices[0][0], c_indices[-1][-1]))
+    for indices in c_indices:
+        c_spans.append((indices[0], indices[-1]))
+
+    c_poses = []
+    for c_start, c_end in c_spans:
+        _, c_pos = corpus.ParseHelper.self_category(
+            parsed, [c_start, c_end], exact=False, positions=True)
+        c_poses.append(c_pos)
 
     sindices, eindices = collect_cnnct_positions(c_indices)
     for i, s in enumerate(tfeatures):
@@ -117,7 +163,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
             s.add('CNNCT_START')
         if end in sindices:
             s.add('CNNCT_END')
-        for indices in c_indices:
+        for indices, cnnct_comp in zip(c_indices, cnncts):
             if span[0] <= indices[0] < span[1]:
                 s.add('HAS_CONNCT')
                 break
@@ -130,8 +176,8 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
                     pt.replace('\\', r'\\').replace(':', r'\:')))
 
         # self
-        me = corpus.ParseHelper.self_category(
-            parsed, [start, end], exact=False)
+        me, me_pos = corpus.ParseHelper.self_category(
+            parsed, [start, end], exact=False, positions=True)
         sf = corpus.ParseHelper.label(me)
 
         # parent
@@ -147,6 +193,9 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
             corpus.ParseHelper.right_category(me))
 
         s.add('CONTEXT-{}-{}-{}-{}'.format(sf, p, lsb, rsb))
+
+        for c_pos in c_poses:
+            path_features(s, parsed, c_pos, me_pos)
 
     return tlabels, tfeatures
 
@@ -197,6 +246,7 @@ def extract_features(tokens, pos_tokens, arg):
     # set features
     for s in tfeatures:
         s.add('CNNCT-' + cnnct)
+
         s.add('RTYPE-{}'.format(rtype))
     for lst in c_indices:
         for idx in lst:

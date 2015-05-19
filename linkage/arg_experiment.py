@@ -9,6 +9,8 @@ import evaluate
 import features
 import linkage
 
+from collections import defaultdict
+
 
 def process_commands():
     parser = argparse.ArgumentParser()
@@ -29,9 +31,13 @@ def process_commands():
     return parser.parse_args()
 
 
-def output_crf(fout, data_set, arguments, corpus_file):
-    for l in data_set:
-        tokens = corpus_file.corpus[l]
+def extract_features(corpus_file, arguments):
+    data_set = defaultdict(list)
+    counter = evaluate.ProgressCounter()
+
+    for l, tokens in corpus_file.corpus.items():
+        counter.step()
+
         pos_tokens = corpus_file.pos_corpus[l]
         parsed = corpus_file.parse_corpus[l]
         EDUs = argument.get_EDU_offsets(tokens)
@@ -39,9 +45,16 @@ def output_crf(fout, data_set, arguments, corpus_file):
         for arg in arguments.arguments(l):
             tlabels, tfeatures = argument.extract_EDU_features(
                 EDUs, tokens, pos_tokens, parsed, arg)
+            data_set[l].append((tlabels, tfeatures))
+    return data_set
 
-            # output
+
+def output_crf(fout, labels, data_set):
+    for l in labels:
+        for tlabels, tfeatures in data_set[l]:
             for i, label in enumerate(tlabels):
+                # if not argument.is_argument_label(label):
+                #     continue
                 fout.write('{}\t{}\n'.format(
                     label,
                     '\t'.join(tfeatures[i])
@@ -51,20 +64,19 @@ def output_crf(fout, data_set, arguments, corpus_file):
 
 def test(fhelper, arguments, corpus_file, train_path, test_path):
 
+    data_set = extract_features(corpus_file, arguments)
     for i in fhelper.folds():
         with open('{}.{}'.format(train_path, i), 'w') as train_file:
             output_crf(
                 train_file,
                 fhelper.train_set(i),
-                arguments,
-                corpus_file
+                data_set
             )
         with open('{}.{}'.format(test_path, i), 'w') as test_file:
             output_crf(
                 test_file,
                 fhelper.test_set(i),
-                arguments,
-                corpus_file
+                data_set
             )
 
 
