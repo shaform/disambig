@@ -12,6 +12,10 @@ from glob import glob
 
 from statistics import print_distribution
 
+
+class SkipException(Exception):
+    pass
+
 Explicit = '\u663e\u5f0f\u5173\u7cfb'
 Rsym = re.compile(r'\W')
 
@@ -57,22 +61,40 @@ def get_sents(r):
     return r.get('Sentence').split('|')
 
 
-def check_sents(article, sents, sent_indices):
-    '''check sentence correctness'''
+def check_indices(article, texts, indices):
+    '''check indices correctness'''
 
-    correct_sent = True
-    if len(sent_indices) != len(sents):
-        print('# sentence num not matched')
-        correct_sent = False
+    correct = True
+    if len(indices) != len(texts):
+        print('# not matched')
+        correct = False
 
-    for index, sent in zip(sent_indices, sents):
+    for index, text in zip(indices, texts):
         x, y = index
-        if article[x:y] != sent:
-            print('correct:', sent,
+        if article[x:y] != text:
+            print('correct:', text,
                   'extracted:', article[x:y])
-            correct_sent = False
+            correct = False
 
-    return correct_sent
+    return correct
+
+
+def handle_cnncts(r, annotated):
+    indices = tuple(
+        r.get('ConnectivePosition').split('&&'))
+
+    # check duplication
+    if indices in annotated:
+        print('# duplicate detected')
+        raise SkipException()
+    else:
+        annotated.add(indices)
+
+    cnncts = split_dot(r.get('Connective'))
+    indices = list(map(get_offsets, indices))
+    rtype = r.get('RelationType')
+    stype = r.get('StructureType')
+    return cnncts, indices, rtype, stype
 
 
 def extract_linkages(dir_path, pout, cout, aout):
@@ -105,117 +127,97 @@ def extract_linkages(dir_path, pout, cout, aout):
             annotated = set()
 
             for r in relation_list:
-                if r.get('ParentId') == '-1':
-                    sen_num = len(r.get('SentencePosition').split('|'))
-                    sents = r.get('Sentence').split('|')
-
-                    if len(sents) != sen_num:
-                        print('-- strange --')
+                try:
+                    # -- checks -- #
+                    def print_current():
+                        print('## -- current -- ##')
+                        print('{} P{} R{}'.format(
+                            fname,
+                            p.get('ID'),
+                            r.get('ID')
+                        ))
                         print_tree(r)
-                    article = ''.join(sents)
-                    # ensure no strange whitespace is present
-                    assert(article == article.strip())
-                    pout.write('cdtb-{}-{}\t{}\n'.format(
-                        fname, p.get('ID'), article))
-                    detected_num_of_paragraph += 1
 
-                is_explicit = r.get('ConnectiveType') == Explicit
+                    sent_indices = get_sent_indices(r)
+                    sents = get_sents(r)
 
-                # -- extract connective -- #
+                    if r.get('ParentId') == '-1':
+                        article = ''.join(sents)
+                        # ensure no strange whitespace is present
+                        assert(article == article.strip())
+                        pout.write('cdtb-{}-{}\t{}\n'.format(
+                            fname, p.get('ID'), article))
+                        detected_num_of_paragraph += 1
 
-                if is_explicit:
-                    indices = tuple(
-                        r.get('ConnectivePosition').split('&&'))
+                    correct_sent = check_indices(article, sents, sent_indices)
+                    if not correct_sent:
+                        print('sentence not correct')
+                        print_current()
 
-                    # check duplication
-                    if indices in annotated:
-                        print('# duplicate detected')
-                        continue
-                    else:
-                        annotated.add(indices)
+                    is_explicit = r.get('ConnectiveType') == Explicit
 
-                    indices = list(map(get_offsets, indices))
-                    conncts = split_dot(r.get('Connective'))
+                    # -- extract connective -- #
 
-                    # check index correctness
-                    for index, connct in zip(indices, conncts):
-                        x, y = index
-                        if article[x:y] != connct:
-                            print('# wrong position')
-                            print(connct, article[x:y])
+                    if is_explicit:
+                        cnncts, indices, rtype, stype = handle_cnncts(
+                            r, annotated)
+                        check_indices(article, cnncts, indices)
 
-                    rtype = r.get('RelationType')
-                    stype = r.get('StructureType')
-                    cnnct_offsets = '-'.join('{}:{}'.format(x, y)
-                                             for x, y in indices)
+                        cnnct_offsets = '-'.join('{}:{}'.format(x, y)
+                                                 for x, y in indices)
+                        cout.write('cdtb-{}-{}\t{}\t{}\t{}\t{}\n'.format(
+                            fname,
+                            p.get('ID'),
+                            '-'.join(cnncts),
+                            cnnct_offsets,
+                            rtype,
+                            stype
+                        ))
 
-                    cout.write('cdtb-{}-{}\t{}\t{}\t{}\t{}\n'.format(
-                        fname,
-                        p.get('ID'),
-                        '-'.join(conncts),
-                        cnnct_offsets,
-                        rtype,
-                        stype
-                    ))
+                        # -- extract arguments -- #
+                        aout.write('cdtb-{}-{}\t{}\t{}\t{}\n'.format(
+                            fname,
+                            p.get('ID'),
+                            cnnct_offsets,
+                            '|'.join(sents),
+                            '|'.join('{}:{}'.format(x, y)
+                                     for x, y in sent_indices)
+                        ))
 
-                    # generate role stats
-                    role_stats[r.get('RoleLocation')] += 1
+                        # -- generate stats -- #
+                        role_stats[r.get('RoleLocation')] += 1
+                        argument_stats[len(sents)] += 1
+                        connective_stats[len(cnncts)] += 1
+                        if (len(cnncts) > 1 and len(cnncts) < len(sents)
+                                or len(cnncts) == 1 and len(sents) > 2):
+                            mapping_examples[r.get('StructureType')] += 1
 
-                # -- extract arguments -- #
-                def print_current():
-                    print('{} P{} R{}'.format(
-                        fname,
-                        p.get('ID'),
-                        r.get('ID')
-                    ))
+                        mapping_stats['{}-{}'.format(
+                            len(cnncts),
+                            len(sents))] += 1
+                        if (sent_indices[0][0] <= indices[0][0]
+                                and indices[-1][-1] <= sent_indices[-1][-1]):
+                            range_stats['in_range'] += 1
+                        else:
+                            range_stats['out_range'] += 1
 
-                sent_indices = get_sent_indices(r)
-                sents = get_sents(r)
+                    if correct_sent:
+                        for x, y in sent_indices:
+                            before = extract(article, x - 1, x)
+                            start = extract(article, x, x + 1)
+                            end = extract(article, y - 1, y)
+                            after = extract(article, y, y + 1)
+                            before_stats[before] += 1
+                            end_stats[end] += 1
 
-                correct_sent = check_sents(article, sents, sent_indices)
-                if not correct_sent:
-                    print_current()
-
-                # generate sent stats
-                if is_explicit:
-                    argument_stats[len(sents)] += 1
-                    connective_stats[len(conncts)] += 1
-                    if (len(conncts) > 1 and len(conncts) < len(sents)
-                            or len(conncts) == 1 and len(sents) > 2):
-                        mapping_examples[r.get('StructureType')] += 1
-
-                    mapping_stats['{}-{}'.format(
-                        len(conncts),
-                        len(sents))] += 1
-                    if (sent_indices[0][0] <= indices[0][0]
-                            and indices[-1][-1] <= sent_indices[-1][-1]):
-                        range_stats['in_range'] += 1
-                    else:
-                        range_stats['out_range'] += 1
-
-                    aout.write('cdtb-{}-{}\t{}\t{}\t{}\n'.format(
-                        fname,
-                        p.get('ID'),
-                        cnnct_offsets,
-                        '|'.join(sents),
-                        '|'.join('{}:{}'.format(x, y) for x, y in sent_indices)
-                    ))
-
-                if correct_sent:
-                    for x, y in sent_indices:
-                        before = extract(article, x - 1, x)
-                        start = extract(article, x, x + 1)
-                        end = extract(article, y - 1, y)
-                        after = extract(article, y, y + 1)
-                        before_stats[before] += 1
-                        end_stats[end] += 1
-
-                        if (Rsym.match(before) is None
-                                or after != '[None]' and Rsym.match(end) is None):
-                            print('##not in', before, start)
-                            print('##not in', end, after)
-                            print(extract(article, x, y))
-                            print_current()
+                            if (Rsym.match(before) is None
+                                    or after != '[None]' and Rsym.match(end) is None):
+                                print('##not in', before, start)
+                                print('##not in', end, after)
+                                print(extract(article, x, y))
+                                print_current()
+                except SkipException:
+                    continue
 
             if detected_num_of_paragraph > 1:
                 print('strange {} {} {}'.format(
