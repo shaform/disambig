@@ -171,6 +171,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
     tlabels = get_EDU_labels(EDUs, a_indices)
     arg_offsets = get_argument_offsets(a_indices)
     assert(len(arg_offsets) == tlabels.count(_BEGIN))
+    cnnct_EDUs = set()
     tfeatures = [set() for _ in range(tlen)]
 
     # set features
@@ -205,6 +206,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
         for indices, cnnct_comp in zip(c_indices, cnncts):
             if span[0] <= indices[0] < span[1]:
                 s.add('HAS_CONNCT')
+                cnnct_EDUs.add(i)
                 break
 
         for j in range(span[0], span[1]):
@@ -236,7 +238,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
         for c_pos in c_poses:
             path_features(s, parsed, c_pos, me_pos)
 
-    return c_indices, tlabels, tfeatures
+    return c_indices, cnnct_EDUs, tlabels, tfeatures
 
 
 def check_continuity(labels):

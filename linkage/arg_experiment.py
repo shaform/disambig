@@ -52,14 +52,14 @@ def extract_features(corpus_file, arguments, test_arguments):
             a_indices = arguments.get_a_indices(l, arg)
             arg = list(arg)
             arg[-1] = a_indices
-            c_indices, tlabels, tfeatures = argument.extract_EDU_features(
+            c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
                 EDUs, tokens, pos_tokens, parsed, arg)
-            test_set[l].append((c_indices, tlabels, tfeatures))
+            test_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
         for arg in arguments.arguments(l):
-            c_indices, tlabels, tfeatures = argument.extract_EDU_features(
+            c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
                 EDUs, tokens, pos_tokens, parsed, arg)
-            data_set[l].append((c_indices, tlabels, tfeatures))
+            data_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
     return data_set, test_set
 
@@ -67,14 +67,14 @@ def extract_features(corpus_file, arguments, test_arguments):
 def extract_crf_data(labels, data_set):
     crf_data = []
     for l in labels:
-        for c_indices, tlabels, tfeatures in data_set[l]:
-            crf_data.append((l, c_indices, tlabels, tfeatures))
+        for c_indices, cEDU, tlabels, tfeatures in data_set[l]:
+            crf_data.append((l, c_indices, cEDU, tlabels, tfeatures))
     return crf_data
 
 
 def get_ranges(crf_data):
     ranges = []
-    for _, _, labels, _ in crf_data:
+    for _, _, _, labels, _ in crf_data:
         start = labels.index(argument._BEGIN)
         try:
             end = labels.index(argument._AFTER)
@@ -86,13 +86,13 @@ def get_ranges(crf_data):
 
 def get_hierarchy_ranges(crf_data, edu_spans):
     ranges = []
-    for l, c_indices, _, _ in crf_data:
+    for l, c_indices, _, _, _ in crf_data:
         ranges.append(edu_spans[l][c_indices])
     return ranges
 
 
 def output_crf(fout, crf_data, ranges=None):
-    for i, (_, _, tlabels, tfeatures) in enumerate(crf_data):
+    for i, (_, _, _, tlabels, tfeatures) in enumerate(crf_data):
         if ranges is not None:
             rs = ranges[i]
         else:
@@ -112,11 +112,13 @@ def output_crf(fout, crf_data, ranges=None):
 
 def load_predict(fin, ranges):
     arg_spans = []
+    probs = []
     labels = []
     for l in fin:
         l = l.strip()
         if l.startswith('@'):
             prob = float(l.split()[1])
+            probs.append(prob)
 
             last = argument._BEFORE
         elif l:
@@ -138,7 +140,7 @@ def load_predict(fin, ranges):
         assert(len(labels) == 0)
         if ranges is not None:
             assert(len(arg_spans) == len(ranges))
-    return arg_spans
+    return arg_spans, probs
 
 
 def test(fhelper, args, test_args, corpus_file,
@@ -188,18 +190,95 @@ def test(fhelper, args, test_args, corpus_file,
         processes.append(
             subprocess.Popen([crf, 'tag', '-pi', '-m', mpath, path],
                              stdout=subprocess.PIPE, universal_newlines=True))
-    cv_stats = defaultdict(list)
+
+    preds = []
+    pred_probs = []
     for crf_data, ranges, p in zip(test_crf_data, test_crf_ranges, processes):
         p.wait()
-        arg_spans = load_predict(p.stdout, ranges)
+        arg_spans, probs = load_predict(p.stdout, ranges)
         assert(len(arg_spans) == len(crf_data))
+        preds.append(arg_spans)
+        pred_probs.append(probs)
 
+    if not keep_boundary:
+        for crf_data, pds, probs in zip(test_crf_data, preds, pred_probs):
+            hierarchy_adjust(crf_data, pds, probs)
+
+    # evaluation
+    cv_stats = defaultdict(list)
+    sum_of_total = 0
+    for i, crf_data, arg_spans in zip(fhelper.folds(), test_crf_data, preds):
         correct = 0
+        tp = fp = total = 0
         for arg_span, item in zip(arg_spans, crf_data):
             s = args.edu_truth[item[0]][item[1]]
+            tp += len(s & arg_span)
+            fp += len(arg_span - s)
             correct += (s == arg_span)
-        cv_stats['Accuracy'].append(correct / len(arg_spans))
+
+        for l in fhelper.test_set(i):
+            d = args.edu_truth[l]
+            for s in d.values():
+                total += len(s)
+        sum_of_total += total
+        print('Totally {} arguments'.format(total))
+
+        accuracy = correct / len(arg_spans) if len(arg_spans) > 0 else 1
+        recall = tp / total
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 1
+        f1 = evaluate.f1(recall, prec)
+        cv_stats['Accuracy'].append(accuracy)
+        cv_stats['Recall'].append(recall)
+        cv_stats['Prec'].append(prec)
+        cv_stats['F1'].append(f1)
+
     print('Accuracy:', np.mean(cv_stats['Accuracy']))
+    print('Recall:', np.mean(cv_stats['Recall']))
+    print('Prec:', np.mean(cv_stats['Prec']))
+    print('F1:', np.mean(cv_stats['F1']))
+    print('Totally {} arguments for all'.format(sum_of_total))
+
+
+def pop_max(items, probs):
+    max_idx = items[0]
+    maxi = 0
+    maxp = probs[max_idx]
+    for i, idx in enumerate(items):
+        if probs[idx] > maxp:
+            maxp = probs[idx]
+            max_idx = idx
+            maxi = i
+    items.pop(maxi)
+    return max_idx
+
+
+def get_items(items, lst):
+    elems = []
+    for i in items:
+        elems.append(lst[i])
+    return elems
+
+
+# cd = (l, c_indices, cEDUs, tlabels, tfeatures)
+def reduce_inner(item, preds, cds):
+    for pd, cd in zip(preds, cds):
+        # if connectives are insie of item
+        # if span is less than item
+        # then use rule to restrict and then CRF predict again
+        pass
+
+
+def hierarchy_adjust(crf_data, preds, probs):
+    instances = defaultdict(list)
+    for i, item in enumerate(crf_data):
+        instances[item[0]].append(i)
+
+    for items in instances.values():
+        while len(items) > 0:
+            idx = pop_max(items, probs)
+            pds = get_items(items, preds)
+            cds = get_items(items, crf_data)
+            reduce_inner(preds[idx], pds, cds)
 
 
 def main():

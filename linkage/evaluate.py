@@ -6,7 +6,10 @@ from sklearn import metrics
 
 
 def f1(recall, prec):
-    return 2 * recall * prec / (recall + prec)
+    if recall + prec == 0:
+        return 0
+    else:
+        return 2 * recall * prec / (recall + prec)
 
 
 def print_scores(recall, prec, *, fscore=None, label=None):
