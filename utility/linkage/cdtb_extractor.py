@@ -49,6 +49,32 @@ def extract(article, l, r):
         return text
 
 
+def get_sent_indices(r):
+    return [get_offsets(i) for i in r.get('SentencePosition').split('|')]
+
+
+def get_sents(r):
+    return r.get('Sentence').split('|')
+
+
+def check_sents(article, sents, sent_indices):
+    '''check sentence correctness'''
+
+    correct_sent = True
+    if len(sent_indices) != len(sents):
+        print('# sentence num not matched')
+        correct_sent = False
+
+    for index, sent in zip(sent_indices, sents):
+        x, y = index
+        if article[x:y] != sent:
+            print('correct:', sent,
+                  'extracted:', article[x:y])
+            correct_sent = False
+
+    return correct_sent
+
+
 def extract_linkages(dir_path, pout, cout, aout):
     print('\nstart extract')
 
@@ -143,29 +169,12 @@ def extract_linkages(dir_path, pout, cout, aout):
                         r.get('ID')
                     ))
 
-                sent_indices = [get_offsets(i)
-                                for i in r.get('SentencePosition').split('|')]
-                sents = r.get('Sentence').split('|')
+                sent_indices = get_sent_indices(r)
+                sents = get_sents(r)
 
-                # check sentence correctness
-                incorrect_sent = False
-                if len(sent_indices) != len(sents):
-                    print('# sentence num not matched')
+                correct_sent = check_sents(article, sents, sent_indices)
+                if not correct_sent:
                     print_current()
-                    incorrect_sent = True
-
-                for index, sent in zip(sent_indices, sents):
-                    x, y = index
-                    if article[x:y] != sent:
-                        print('# wrong sentence position')
-                        print('{} P{} R{}'.format(
-                            fname,
-                            p.get('ID'),
-                            r.get('ID')
-                        ))
-                        print('correct:', sent,
-                              'extracted:', article[x:y])
-                        incorrect_sent = True
 
                 # generate sent stats
                 if is_explicit:
@@ -192,7 +201,7 @@ def extract_linkages(dir_path, pout, cout, aout):
                         '|'.join('{}:{}'.format(x, y) for x, y in sent_indices)
                     ))
 
-                if not incorrect_sent:
+                if correct_sent:
                     for x, y in sent_indices:
                         before = extract(article, x - 1, x)
                         start = extract(article, x, x + 1)
