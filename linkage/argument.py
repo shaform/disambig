@@ -357,7 +357,7 @@ class ArgumentFile(object):
                                append=list.append)
 
     def arguments(self, plabel):
-        for c_indices, (c, r, s, a) in self.argument[plabel].items():
+        for c_indices, (c, r, s, a) in sorted(self.argument[plabel].items()):
             yield c, r, s, c_indices, a
 
     def get_a_indices(self, plabel, arg):

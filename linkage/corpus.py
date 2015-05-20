@@ -68,14 +68,14 @@ class FoldsHelper(object):
         return sorted(self.data_folds)
 
     def train_set(self, fold):
-        for key, s in self.data_folds.items():
+        for key, s in sorted(self.data_folds.items()):
             if key != fold:
-                yield from s
+                yield from sorted(s)
 
     def test_set(self, fold):
-        for key, s in self.data_folds.items():
+        for key, s in sorted(self.data_folds.items()):
             if key == fold:
-                yield from s
+                yield from sorted(s)
 
     def features(self, data_set, feature_tbl, extend=0):
         labels = []
@@ -95,10 +95,6 @@ class FoldsHelper(object):
                     Y.append(y)
 
         return labels, X, Y
-
-    def sets(self):
-        for i in self.folds():
-            yield train_set
 
 
 class ParseHelper(object):

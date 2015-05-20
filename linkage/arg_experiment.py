@@ -13,6 +13,44 @@ import linkage
 from collections import defaultdict
 
 
+class Predictor(object):
+
+    def __init__(self, crf_path, model_path, train_path, test_path):
+        self.crf = crf_path
+        self.model_path = model_path
+        self.train_path = train_path
+        self.test_path = test_path
+
+    def write_file(self, path, crf_data, crf_ranges):
+        with open(path, 'w') as f:
+            output_crf(
+                f,
+                crf_data,
+                crf_ranges
+            )
+
+    def train(self, i, crf_data, crf_ranges):
+        mpath = '{}.{}'.format(self.model_path, i)
+        path = '{}.{}'.format(self.train_path, i)
+
+        self.write_file(path, crf_data, crf_ranges)
+
+        return subprocess.Popen([self.crf, 'learn', '-m', mpath, path])
+
+    def test(self, i, crf_data, crf_ranges, wait=False):
+        mpath = '{}.{}'.format(self.model_path, i)
+        path = '{}.{}'.format(self.test_path, i)
+
+        self.write_file(path, crf_data, crf_ranges)
+
+        p = subprocess.Popen([self.crf, 'tag', '-pi', '-m', mpath, path],
+                             stdout=subprocess.PIPE, universal_newlines=True)
+        if wait:
+            p.wait()
+
+        return p
+
+
 def process_commands():
     parser = argparse.ArgumentParser()
     parser.add_argument('--argument', required=True,
@@ -32,6 +70,8 @@ def process_commands():
     parser.add_argument('--test', required=True)
     parser.add_argument('--model', required=True)
     parser.add_argument('--keep_boundary', action='store_true')
+    parser.add_argument('--hierarchy_ranges', action='store_true')
+    parser.add_argument('--hierarchy_adjust', action='store_true')
 
     return parser.parse_args()
 
@@ -84,10 +124,13 @@ def get_ranges(crf_data):
     return ranges
 
 
-def get_hierarchy_ranges(crf_data, edu_spans):
+def get_hierarchy_ranges(crf_data, edu_spans, hierarchy_ranges=False):
     ranges = []
     for l, c_indices, _, _, _ in crf_data:
-        ranges.append(edu_spans[l][c_indices])
+        rs = edu_spans[l][c_indices]
+        if not hierarchy_ranges:
+            rs = rs[-1:]
+        ranges.append(rs)
     return ranges
 
 
@@ -145,30 +188,25 @@ def load_predict(fin, ranges):
 
 def test(fhelper, args, test_args, corpus_file,
          train_path, test_path, model_path, crf,
-         keep_boundary):
+         keep_boundary=False, hierarchy_ranges=False,
+         hierarchy_adjust=False):
 
     args.init_truth(corpus_file)
     data_set, test_set = extract_features(corpus_file, args, test_args)
 
+    predictor = Predictor(crf, model_path, train_path, test_path)
+
     processes = []
     test_crf_data = []
     for i in fhelper.folds():
-        path = '{}.{}'.format(train_path, i)
-        mpath = '{}.{}'.format(model_path, i)
         crf_data = extract_crf_data(fhelper.train_set(i), data_set)
         if keep_boundary:
             crf_ranges = get_ranges(crf_data)
         else:
             crf_ranges = get_hierarchy_ranges(crf_data, args.edu_spans)
-        with open(path, 'w') as train_file:
-            output_crf(
-                train_file,
-                crf_data,
-                crf_ranges
-            )
         test_crf_data.append(extract_crf_data(fhelper.test_set(i), test_set))
 
-        processes.append(subprocess.Popen([crf, 'learn', '-m', mpath, path]))
+        processes.append(predictor.train(i, crf_data, crf_ranges))
     for p in processes:
         p.wait()
 
@@ -177,19 +215,10 @@ def test(fhelper, args, test_args, corpus_file,
     test_crf_ranges = [None] * len(test_crf_data)
     if keep_boundary:
         test_crf_ranges = [get_ranges(crf_data) for crf_data in test_crf_data]
-    for i in fhelper.folds():
-        mpath = '{}.{}'.format(model_path, i)
-        path = '{}.{}'.format(test_path, i)
-        with open(path, 'w') as test_file:
-            output_crf(
-                test_file,
-                test_crf_data[i],
-                test_crf_ranges[i]
-            )
 
+    for i in fhelper.folds():
         processes.append(
-            subprocess.Popen([crf, 'tag', '-pi', '-m', mpath, path],
-                             stdout=subprocess.PIPE, universal_newlines=True))
+            predictor.test(i, test_crf_data[i], test_crf_ranges[i]))
 
     preds = []
     pred_probs = []
@@ -200,9 +229,12 @@ def test(fhelper, args, test_args, corpus_file,
         preds.append(arg_spans)
         pred_probs.append(probs)
 
-    if not keep_boundary:
-        for crf_data, pds, probs in zip(test_crf_data, preds, pred_probs):
-            hierarchy_adjust(crf_data, pds, probs)
+    if not keep_boundary and hierarchy_adjust:
+        for i, crf_data, pds, probs in zip(fhelper.folds(),
+                                           test_crf_data,
+                                           preds,
+                                           pred_probs):
+            handle_hierarchy_adjust(crf_data, pds, probs, i, predictor)
 
     # evaluation
     cv_stats = defaultdict(list)
@@ -259,16 +291,65 @@ def get_items(items, lst):
     return elems
 
 
-# cd = (l, c_indices, cEDUs, tlabels, tfeatures)
-def reduce_inner(item, preds, cds):
-    for pd, cd in zip(preds, cds):
-        # if connectives are insie of item
-        # if span is less than item
-        # then use rule to restrict and then CRF predict again
-        pass
+def get_pred_span(pd):
+    return min(pd)[0], max(pd)[-1]
 
 
-def hierarchy_adjust(crf_data, preds, probs):
+def is_inner(cEDUs, pd, start, end, outer):
+    # check if span is less than item
+    i_start, i_end = get_pred_span(pd)
+    if i_end - i_start >= end - start:
+        return None
+
+    # check if connectives are inside of an argument
+    for a_start, a_end in outer:
+        if all(a_start <= i < a_end for i in cEDUs):
+            # check if it exceed the span
+            if i_start < a_start or i_end > a_end:
+                return (a_start, a_end)
+            else:
+                return None
+
+    return None
+
+
+def strip_inner(pd, span):
+    for s, e in list(pd):
+        if e <= span[0] or s >= span[1]:
+            pd.remove((s, e))
+        else:
+            if s < span[0]:
+                pd.remove((s, e))
+                s = span[0]
+                pd.add((s, e))
+            if e > span[1]:
+                pd.remove((s, e))
+                pd.add((s, span[1]))
+
+
+def repredict_inner(pd, span, cd, fold, predictor):
+    p = predictor.test(fold, [cd], [[span]], wait=True)
+    arg_spans, probs = load_predict(p.stdout, [[span]])
+    assert(len(arg_spans) == 1)
+    assert(len(probs) == 1)
+    pd.clear()
+    pd.update(arg_spans[0])
+    return probs[0]
+
+
+def reduce_inner(item, preds, cds, items, probs, fold, predictor):
+    start, end = get_pred_span(item)
+    for pd, cd, j in zip(preds, cds, items):
+        _, _, cEDUs, tlabels, tfeatures = cd
+        span = is_inner(cEDUs, pd, start, end, item)
+        if span is not None:
+            strip_inner(pd, span)
+            # pr = repredict_inner(pd, span, cd, fold, predictor)
+            # if pr is not None:
+            #     probs[j] = pr
+
+
+def handle_hierarchy_adjust(crf_data, preds, probs, fold, predictor):
     instances = defaultdict(list)
     for i, item in enumerate(crf_data):
         instances[item[0]].append(i)
@@ -278,7 +359,8 @@ def hierarchy_adjust(crf_data, preds, probs):
             idx = pop_max(items, probs)
             pds = get_items(items, preds)
             cds = get_items(items, crf_data)
-            reduce_inner(preds[idx], pds, cds)
+            reduce_inner(
+                preds[idx], pds, cds, items, probs, fold, predictor)
 
 
 def main():
@@ -294,7 +376,7 @@ def main():
     test(fhelper, arguments, test_arguments,
          corpus_file,
          args.train, args.test, args.model, args.crfsuite,
-         keep_boundary)
+         keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust)
 
 
 if __name__ == '__main__':
