@@ -327,6 +327,19 @@ def strip_inner(pd, span):
                 pd.add((s, span[1]))
 
 
+def strip_outer(pd, span):
+    for s, e in list(pd):
+        if s > span[0] and e <= span[1]:
+            pd.remove((s, e))
+        else:
+            if span[0] < s < span[1]:
+                pd.remove((s, e))
+                pd.add((span[1], e))
+            elif span[0] < e < span[1]:
+                pd.remove((s, e))
+                pd.add((s, span[1]))
+
+
 def repredict_inner(pd, span, cd, fold, predictor):
     p = predictor.test(fold, [cd], [[span]], wait=True)
     arg_spans, probs = load_predict(p.stdout, [[span]])
@@ -340,13 +353,21 @@ def repredict_inner(pd, span, cd, fold, predictor):
 def reduce_inner(item, preds, cds, items, probs, fold, predictor):
     start, end = get_pred_span(item)
     for pd, cd, j in zip(preds, cds, items):
-        _, _, cEDUs, tlabels, tfeatures = cd
+        cEDUs = cd[2]
         span = is_inner(cEDUs, pd, start, end, item)
         if span is not None:
             strip_inner(pd, span)
             # pr = repredict_inner(pd, span, cd, fold, predictor)
             # if pr is not None:
             #     probs[j] = pr
+
+
+def reduce_outer(item, preds):
+    start, end = get_pred_span(item)
+    for pd in preds:
+        o_start, o_end = get_pred_span(pd)
+        if o_start <= start and o_end >= end:
+            strip_outer(pd, (start, end))
 
 
 def handle_hierarchy_adjust(crf_data, preds, probs, fold, predictor):
@@ -361,6 +382,8 @@ def handle_hierarchy_adjust(crf_data, preds, probs, fold, predictor):
             cds = get_items(items, crf_data)
             reduce_inner(
                 preds[idx], pds, cds, items, probs, fold, predictor)
+            # reduce_outer(
+            #     preds[idx], pds)
 
 
 def main():
