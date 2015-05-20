@@ -38,6 +38,7 @@ def process_commands():
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
     parser.add_argument('--threshold', type=float, default=0.6)
+    parser.add_argument('--arg_output')
 
     return parser.parse_args()
 
@@ -199,7 +200,7 @@ def get_feature_set(feature_tbl):
 
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, lcdict, linkage_probs, word_ambig,
-                     cut, *, words=None, perfect=False):
+                     cut, *, words=None, perfect=False, arg_output=None):
     stats = evaluate.FoldStats(show_fold=False)
     # pstats = evaluate.FoldStats(show_fold=True)
     wstats = evaluate.FoldStats(show_fold=False)
@@ -217,6 +218,9 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     all_ssYp = []
     all_ssY = []
     feature_set = get_feature_set(feature_tbl)
+
+    if arg_output is not None:
+        arg_output = open(arg_output, 'w')
 
     for i in fhelper.folds():
         print('\npredict for fold', i)
@@ -236,6 +240,8 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
         wYp = []
         wY = []
 
+        cnnct_dict = {}
+
         has_words = set()
         for label in plabels:
             tokens = corpus_file.corpus[label]
@@ -248,11 +254,12 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             markers = []
             ambig_count = defaultdict(int)
             cand_words = set()
-            for _, indices in detector.all_tokens(tokens,
-                                                  continuous=True,
-                                                  cross=False,
-                                                  truth=truth_connectives):
+            for cnnct, indices in detector.all_tokens(tokens,
+                                                      continuous=True,
+                                                      cross=False,
+                                                      truth=truth_connectives):
                 markers.append(indices)
+                cnnct_dict[(label, indices)] = cnnct
 
                 # add words
                 for windex in indices:
@@ -345,9 +352,22 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
         sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
                                             truth.structure_type,
                                             non_dis=2)
+        assert(slabels == sslabels)
         append_sense_items(sslabels, ssYp, ssY, feature_tbl,
                            truth.structure_type, plabels,
                            non_dis=2)
+
+        if arg_output is not None:
+            for (l, cl), rt, st in zip(slabels, sYp, ssYp):
+                cnnct = cnnct_dict[(l, cl)]
+                arg_output.write('{}\t{}\t{}\t{}\t{}\t\t\n'.format(
+                    l,
+                    '-'.join(cnnct),
+                    '-'.join(cl),
+                    rt,
+                    st
+                ))
+
         print('done!')
 
         all_ssYp.append(ssYp)
@@ -376,6 +396,9 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
 
     print('Structure stats:')
     evaluate.print_sense_scores(all_ssY, all_ssYp, 'Overall')
+
+    if arg_output is not None:
+        arg_output.close()
 
 
 def main():
@@ -428,7 +451,8 @@ def main():
         word_ambig,
         cut=cut,
         words=words,
-        perfect=args.perfect)
+        perfect=args.perfect,
+        arg_output=args.arg_output)
 
     '''
     baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)

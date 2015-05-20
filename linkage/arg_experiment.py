@@ -257,9 +257,10 @@ def test(fhelper, args, test_args, corpus_file,
 
         for l in fhelper.test_set(i):
             d = args.edu_truth[l]
-            i_total += len(d)
             for s in d.values():
                 total += len(s)
+                if len(s) > 0:
+                    i_total += 1
         sum_of_total += total
         sum_of_i_total += i_total
         print('Totally {} arguments'.format(total))

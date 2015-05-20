@@ -20,6 +20,7 @@ CDTB_RAW_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus-utf8
 LCORPUS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.txt
 LINKAGE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage.txt
 ARGUMENT_FILE = $(DISAMBIG_DATA)/linkage/cdtb_argument.txt
+ARGUMENT_PREDICT_FILE = $(DISAMBIG_DATA)/linkage/cdtb_argument_predict.txt
 
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
@@ -149,7 +150,7 @@ l_train_perfect_linkage_probs:
 
 # 5. run the experiments
 l_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --check_accuracy #--threshold 6.0
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --tag $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --arg_output $(ARGUMENT_PREDICT_FILE) --check_accuracy #--threshold 6.0
 
 # 5.5 run the perfect experiments
 l_perfect_experiment:
@@ -161,6 +162,10 @@ l_sense_experiment:
 
 # 7. run argument experiment
 l_arg_experiment:
+	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --argument_test $(ARGUMENT_PREDICT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --hierarchy_adjust #--keep_boundary
+
+# 8. run perfect argument experiment
+l_perfect_arg_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --hierarchy_adjust #--keep_boundary
 
 l_statistics:

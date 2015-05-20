@@ -41,6 +41,8 @@ def get_EDU_offsets(tokens):
 
 def get_EDU_labels(EDUs, arg_indices):
     labels = []
+    if len(arg_indices) == 0:
+        return [_BEFORE] * len(EDUs)
     arg_indices_ = list(reversed(arg_indices))
     for start, end in EDUs:
         if len(arg_indices_) == 0:
@@ -320,16 +322,22 @@ class ArgumentFile(object):
         with open(argument_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
 
-        for plbl, cnnct, c_indices, rtype, stype, a_indices, spans in items:
+        for plbl, cnnct, c_indices, rtype, stype, *rest in items:
+            if len(rest) > 0:
+                a_indices, spans = rest
+                arg_token_indices = linkage.list_of_token_indices(
+                    a_indices.split('-'))
+                spans = [tuple(int(i) for i in s.split(':'))
+                         for s in spans.split('|')]
+            else:
+                a_indices = spans = ''
+                arg_token_indices = []
+                spans = []
             cnnct_token_indices = []
             for lst in linkage.list_of_token_indices(
                     c_indices.split('-')):
                 cnnct_token_indices.append(tuple(lst))
             cnnct_token_indices = tuple(cnnct_token_indices)
-            arg_token_indices = linkage.list_of_token_indices(
-                a_indices.split('-'))
-            spans = [tuple(int(i) for i in s.split(':'))
-                     for s in spans.split('|')]
 
             assert(cnnct_token_indices not in self.argument[plbl])
             self.argument[plbl][cnnct_token_indices] = (
