@@ -301,30 +301,39 @@ def extract_features(tokens, pos_tokens, arg):
     return tlabels, tfeatures
 
 
+def add_offset(offsets, start, end, edu_to_index, append=set.add):
+    idx = edu_to_index[start], edu_to_index[end]
+    assert(idx not in offsets)
+    append(offsets, idx)
+
+
 class ArgumentFile(object):
 
     def __init__(self, argument_path):
         self.argument = defaultdict(dict)
         self.argument_truth = defaultdict(dict)
         self.edu_truth = defaultdict(lambda: defaultdict(set))
+        self.edu_spans = defaultdict(lambda: defaultdict(list))
 
         with open(argument_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
 
-        for plabel, cnnct, cnnct_indices, rtype, stype, arg_indices in items:
+        for plbl, cnnct, c_indices, rtype, stype, a_indices, spans in items:
             cnnct_token_indices = []
             for lst in linkage.list_of_token_indices(
-                    cnnct_indices.split('-')):
+                    c_indices.split('-')):
                 cnnct_token_indices.append(tuple(lst))
             cnnct_token_indices = tuple(cnnct_token_indices)
             arg_token_indices = linkage.list_of_token_indices(
-                arg_indices.split('-'))
+                a_indices.split('-'))
+            spans = [tuple(int(i) for i in s.split(':'))
+                     for s in spans.split('|')]
 
-            assert(cnnct_token_indices not in self.argument[plabel])
-            self.argument[plabel][cnnct_token_indices] = (
+            assert(cnnct_token_indices not in self.argument[plbl])
+            self.argument[plbl][cnnct_token_indices] = (
                 cnnct, rtype, stype, arg_token_indices)
-            self.argument_truth[plabel][
-                cnnct_token_indices] = arg_token_indices
+            self.argument_truth[plbl][
+                cnnct_token_indices] = (arg_token_indices, spans)
 
     def init_truth(self, corpus_file):
         assert(len(self.edu_truth) == 0)
@@ -333,13 +342,17 @@ class ArgumentFile(object):
             tlen = len(corpus_file.corpus[l])
             edu_to_index = {edu[0]: i for i, edu in enumerate(EDUs)}
             edu_to_index[tlen] = len(EDUs)
-            for cl, a_indices in data.items():
+
+            for cl, (a_indices, spans) in data.items():
                 arg_offsets = self.edu_truth[l][cl]
                 for indices in a_indices:
                     start, end = indices[0], indices[-1] + 1
-                    idx = edu_to_index[start], edu_to_index[end]
-                    assert(idx not in arg_offsets)
-                    arg_offsets.add(idx)
+                    add_offset(arg_offsets, start, end, edu_to_index)
+
+                span_offsets = self.edu_spans[l][cl]
+                for start, end in spans:
+                    add_offset(span_offsets, start, end, edu_to_index,
+                               append=list.append)
 
     def arguments(self, plabel):
         for c_indices, (c, r, s, a) in self.argument[plabel].items():

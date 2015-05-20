@@ -40,6 +40,28 @@ _TP = {
 }
 
 
+def span_to_offset(span, tokens):
+    start = 0
+    start_idx = 0
+    end = 0
+
+    for i, x in enumerate(tokens):
+        end = end + len(x)
+        if start < span[0]:
+            start = end
+            start_idx = i + 1
+
+        if start > span[0]:
+            assert(False)
+
+        if end == span[1]:
+            assert(span[0] == len(''.join(tokens[:start_idx])))
+            assert(span[1] == len(''.join(tokens[:i + 1])))
+            return start_idx, i + 1
+    else:
+        assert(False)
+
+
 def extract_span(text, index, tokens, stats=None):
     start = 0
     text_span = ''
@@ -190,13 +212,18 @@ def align_arguments(corpus, arg_path, arg_output, ranges, arg_text):
     with open(arg_path, 'r') as f, open(arg_output, 'w') as of:
         with open(arg_text, 'w') as arg_f:
             for l in f:
-                label, cnnct_identity, sents, indices = l.rstrip(
+                label, cnnct_identity, sents, indices, spans = l.rstrip(
                     '\n').split('\t')
                 sents = sents.split('|')
                 indices = extract_indices(indices, sep='|')
+                spans = extract_indices(spans, sep='|')
                 tokens = corpus[label]
                 r = ranges[(label, cnnct_identity)]
                 *cnnct_range, cnnct_indices, cnnct, rtype, stype = r
+
+                # extract spans
+                detected_spans = [
+                    span_to_offset(span, tokens) for span in spans]
 
                 # extract arguments
                 detected_indices = []
@@ -226,13 +253,15 @@ def align_arguments(corpus, arg_path, arg_output, ranges, arg_text):
                         end_stats[tokens[end]] += 1
 
                     # output
-                    of.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+                    of.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(
                         label,
                         cnnct,
                         '-'.join(cnnct_indices),
                         rtype,
                         stype,
-                        '-'.join(detected_indices)
+                        '-'.join(detected_indices),
+                        '|'.join(['{}:{}'.format(*span)
+                                  for span in detected_spans])
                     ))
 
                     append_argument_text(

@@ -53,6 +53,11 @@ def extract(article, l, r):
         return text
 
 
+def get_text_span(r):
+    indices = get_sent_indices(r)
+    return indices[0][0], indices[-1][-1]
+
+
 def get_sent_indices(r):
     return [get_offsets(i) for i in r.get('SentencePosition').split('|')]
 
@@ -97,6 +102,18 @@ def handle_cnncts(r, annotated):
     return cnncts, indices, rtype, stype
 
 
+def get_hierarchy_spans(rlist, rmap, r):
+    spans = []
+    while True:
+        spans.append(get_text_span(r))
+        p = r.get('ParentId')
+        if p == '-1':
+            break
+        else:
+            r = rlist[rmap[p]]
+    return spans
+
+
 def extract_linkages(dir_path, pout, cout, aout):
     print('\nstart extract')
 
@@ -126,6 +143,10 @@ def extract_linkages(dir_path, pout, cout, aout):
             # filter duplicate annotations
             annotated = set()
 
+            rel_map = {}
+            for i, r in enumerate(relation_list):
+                rel_map[r.get('ID')] = i
+
             for r in relation_list:
                 try:
                     # -- checks -- #
@@ -149,6 +170,9 @@ def extract_linkages(dir_path, pout, cout, aout):
                             fname, p.get('ID'), article))
                         detected_num_of_paragraph += 1
 
+                    spans = get_hierarchy_spans(relation_list, rel_map, r)
+                    assert(spans[-1][0] == 0 and spans[-1][-1] == len(article))
+
                     correct_sent = check_indices(article, sents, sent_indices)
                     if not correct_sent:
                         print('sentence not correct')
@@ -156,9 +180,8 @@ def extract_linkages(dir_path, pout, cout, aout):
 
                     is_explicit = r.get('ConnectiveType') == Explicit
 
-                    # -- extract connective -- #
-
                     if is_explicit:
+                        # -- extract connective -- #
                         cnncts, indices, rtype, stype = handle_cnncts(
                             r, annotated)
                         check_indices(article, cnncts, indices)
@@ -175,13 +198,15 @@ def extract_linkages(dir_path, pout, cout, aout):
                         ))
 
                         # -- extract arguments -- #
-                        aout.write('cdtb-{}-{}\t{}\t{}\t{}\n'.format(
+                        aout.write('cdtb-{}-{}\t{}\t{}\t{}\t{}\n'.format(
                             fname,
                             p.get('ID'),
                             cnnct_offsets,
                             '|'.join(sents),
                             '|'.join('{}:{}'.format(x, y)
-                                     for x, y in sent_indices)
+                                     for x, y in sent_indices),
+                            '|'.join('{}:{}'.format(x, y)
+                                     for x, y in spans)
                         ))
 
                         # -- generate stats -- #

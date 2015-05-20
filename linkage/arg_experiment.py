@@ -80,24 +80,34 @@ def get_ranges(crf_data):
             end = labels.index(argument._AFTER)
         except:
             end = len(labels)
-        ranges.append((start, end))
+        ranges.append([(start, end)])
+    return ranges
+
+
+def get_hierarchy_ranges(crf_data, edu_spans):
+    ranges = []
+    for l, c_indices, _, _ in crf_data:
+        ranges.append(edu_spans[l][c_indices])
     return ranges
 
 
 def output_crf(fout, crf_data, ranges=None):
     for i, (_, _, tlabels, tfeatures) in enumerate(crf_data):
-        r = ranges[i] if ranges is not None else None
-        for j, label in enumerate(tlabels):
-            if r is not None:
-                if j < r[0]:
+        if ranges is not None:
+            rs = ranges[i]
+        else:
+            rs = [(0, len(tlabels))]
+        for start, end in rs:
+            for j, label in enumerate(tlabels):
+                if j < start:
                     continue
-                elif j >= r[1]:
+                elif j >= end:
                     break
-            fout.write('{}\t{}\n'.format(
-                label,
-                '\t'.join(tfeatures[j])
-            ))
-        fout.write('\n')
+                fout.write('{}\t{}\n'.format(
+                    label,
+                    '\t'.join(tfeatures[j])
+                ))
+            fout.write('\n')
 
 
 def load_predict(fin, ranges):
@@ -119,7 +129,7 @@ def load_predict(fin, ranges):
             argument.correct_labels(labels)
             argument.check_continuity(labels)
             idx = len(arg_spans)
-            start = ranges[idx][0] if ranges is not None else 0
+            start = ranges[idx][0][0] if ranges is not None else 0
             arg_spans.append(argument.labels_to_offsets(
                 labels,
                 start=start))
@@ -144,7 +154,10 @@ def test(fhelper, args, test_args, corpus_file,
         path = '{}.{}'.format(train_path, i)
         mpath = '{}.{}'.format(model_path, i)
         crf_data = extract_crf_data(fhelper.train_set(i), data_set)
-        crf_ranges = get_ranges(crf_data) if keep_boundary else None
+        if keep_boundary:
+            crf_ranges = get_ranges(crf_data)
+        else:
+            crf_ranges = get_hierarchy_ranges(crf_data, args.edu_spans)
         with open(path, 'w') as train_file:
             output_crf(
                 train_file,
