@@ -134,15 +134,15 @@ def train_sense_lr(lr, fhelper, data_set, feature_tbl, truth):
     Y = []
     for (label, indices), x, y in zip(*fhelper.features(
             data_set, feature_tbl)):
-        if indices in truth.linkage[label]:
+        if indices in truth[label]:
             X.append(x)
-            Y.append(truth.linkage_type[label][indices])
+            Y.append(truth[label][indices])
     lr.fit(X, Y)
 
 NON_DIS = 4
 
 
-def predict_sense(labels, Yp, Y, lr, feature_set, truth):
+def predict_sense(labels, Yp, Y, lr, feature_set, truth, non_dis=NON_DIS):
     sX = []
     sY = []
     slabels = []
@@ -153,9 +153,9 @@ def predict_sense(labels, Yp, Y, lr, feature_set, truth):
             sX.append(feature_set[label])
             if y == 0:
                 # non-discourse
-                sY.append(NON_DIS)
+                sY.append(non_dis)
             else:
-                sY.append(truth.linkage_type[label[0]][label[1]])
+                sY.append(truth[label[0]][label[1]])
 
             slabels.append(label)
 
@@ -163,7 +163,8 @@ def predict_sense(labels, Yp, Y, lr, feature_set, truth):
     return slabels, list(sYp), sY
 
 
-def append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels):
+def append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels,
+                       non_dis=NON_DIS):
     s = set(slabels)
     ps = set(plabels)
 
@@ -174,18 +175,18 @@ def append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels):
                     s.add((label, l))
                     if y == 0:
                         # non-discourse
-                        sY.append(NON_DIS)
+                        sY.append(non_dis)
                     else:
-                        sY.append(truth.linkage_type[label][l])
-                    sYp.append(NON_DIS)
+                        sY.append(truth[label][l])
+                    sYp.append(non_dis)
 
-    for label, types in truth.linkage_type.items():
+    for label, types in truth.items():
         if label in plabels:
             for l, t in types.items():
                 if (label, l) not in s:
                     s.add((label, l))
                     sY.append(t)
-                    sYp.append(NON_DIS)
+                    sYp.append(non_dis)
 
 
 def get_feature_set(feature_tbl):
@@ -212,6 +213,9 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     all_slabels = []
     all_sYp = []
     all_sY = []
+    # structure type statistics
+    all_ssYp = []
+    all_ssY = []
     feature_set = get_feature_set(feature_tbl)
 
     for i in fhelper.folds():
@@ -323,14 +327,31 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                             truth_count=word_ambig.count_fold(plabels))
 
         print('compute sense statistics...', end='', flush=True)
-        train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl, truth)
-        slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set, truth)
-        append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels)
+        train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl,
+                       truth.linkage_type)
+        slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set,
+                                         truth.linkage_type)
+        append_sense_items(slabels, sYp, sY, feature_tbl,
+                           truth.linkage_type, plabels)
         print('done!')
 
         all_slabels.append(slabels)
         all_sYp.append(sYp)
         all_sY.append(sY)
+
+        print('compute structure statistics...', end='', flush=True)
+        train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl,
+                       truth.structure_type)
+        sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
+                                            truth.structure_type,
+                                            non_dis=2)
+        append_sense_items(sslabels, ssYp, ssY, feature_tbl,
+                           truth.structure_type, plabels,
+                           non_dis=2)
+        print('done!')
+
+        all_ssYp.append(ssYp)
+        all_ssY.append(ssY)
 
     print('== done ==')
 
@@ -352,6 +373,9 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
 
     print('Sense stats:')
     evaluate.print_sense_scores(all_sY, all_sYp, 'Overall')
+
+    print('Structure stats:')
+    evaluate.print_sense_scores(all_ssY, all_ssYp, 'Overall')
 
 
 def main():

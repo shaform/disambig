@@ -74,20 +74,22 @@ class LinkageFile(object):
         self.linkage = defaultdict(set)
         self.linkage_with_types = set()
         self.linkage_type = defaultdict(dict)
+        self.structure_type = defaultdict(dict)
         self.type_stats = defaultdict(set)
         self.type_counts = defaultdict(int)
 
         with open(linkage_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
 
-        for plabel, words, indices, tp in items:
+        for plabel, words, indices, tp, sp in items:
             cnnct = tuple(indices.split('-'))
             self.linkage[plabel].add(cnnct)
             self.linkage_type[plabel][cnnct] = int(tp)
+            self.structure_type[plabel][cnnct] = int(sp)
             self.type_stats[words].add(tp)
             self.type_counts[words] += 1
 
-        for plabel, words, indices, _ in items:
+        for plabel, words, indices, _, _ in items:
             cnnct = tuple(indices.split('-'))
             if len(self.type_stats[words]) > 1:
                 self.linkage_with_types.add((plabel, cnnct))

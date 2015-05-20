@@ -23,24 +23,36 @@ def print_scores(recall, prec, *, fscore=None, label=None):
           prec, recall, fscore))
 
 _HEADERS = [
-    'causality',
-    'coordination',
-    'transition',
-    'explanation',
-    'micro-AVG',
-    'macro-AVG',
-]
-
-_ALL_HEADERS = [
-    'causality',
-    'coordination',
-    'transition',
-    'explanation',
-    'non-discourse',
-    'micro-AVG',
-    'macro-AVG',
-    'micro-AVG*',
-    'macro-AVG*',
+    [
+        'hierarchy',
+        'parallel',
+        'micro-AVG',
+        'macro-AVG',
+    ],
+    [
+        'hierarchy',
+        'parallel',
+        'non-discourse',
+        'micro-AVG',
+        'macro-AVG',
+    ],
+    [
+        'causality',
+        'coordination',
+        'transition',
+        'explanation',
+        'micro-AVG',
+        'macro-AVG',
+    ],
+    [
+        'causality',
+        'coordination',
+        'transition',
+        'explanation',
+        'non-discourse',
+        'micro-AVG',
+        'macro-AVG',
+    ]
 ]
 
 
@@ -88,13 +100,18 @@ def print_sense_scores(Ys, Yps, label):
         np.mean(scores, axis=0)[:3]
     ])
 
-    if len(scores) == len(_HEADERS):
-        headers = _HEADERS
-    else:
-        headers = _ALL_HEADERS
+    headers = None
+    for headers_ in _HEADERS:
+        if len(scores) == len(headers_):
+            headers = headers_
+
+    assert(headers is not None)
+    if len(scores) % 2:
+        headers = list(headers)
+        headers.extend(['micro-AVG*', 'macro-AVG*'])
 
         # calculate average scores for true connectives only
-        rel_scores = scores[:4]
+        rel_scores = scores[:-3]
 
         total_pred = total_positive = positive = 0
         for y, yp in zip(Y, Yp):

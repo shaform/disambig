@@ -239,21 +239,31 @@ def test(fhelper, args, test_args, corpus_file,
     # evaluation
     cv_stats = defaultdict(list)
     sum_of_total = 0
+    sum_of_i_total = 0
     for i, crf_data, arg_spans in zip(fhelper.folds(), test_crf_data, preds):
         correct = 0
         tp = fp = total = 0
+        i_tp = i_fp = i_total = 0
         for arg_span, item in zip(arg_spans, crf_data):
             s = args.edu_truth[item[0]][item[1]]
             tp += len(s & arg_span)
             fp += len(arg_span - s)
-            correct += (s == arg_span)
+            if s == arg_span:
+                correct += 1
+                if len(s) > 0:
+                    i_tp += 1
+            else:
+                i_fp += 1
 
         for l in fhelper.test_set(i):
             d = args.edu_truth[l]
+            i_total += len(d)
             for s in d.values():
                 total += len(s)
         sum_of_total += total
+        sum_of_i_total += i_total
         print('Totally {} arguments'.format(total))
+        print('Totally {} instances'.format(i_total))
 
         accuracy = correct / len(arg_spans) if len(arg_spans) > 0 else 1
         recall = tp / total
@@ -264,11 +274,22 @@ def test(fhelper, args, test_args, corpus_file,
         cv_stats['Prec'].append(prec)
         cv_stats['F1'].append(f1)
 
+        recall = i_tp / i_total
+        prec = i_tp / (i_tp + i_fp) if (i_tp + i_fp) > 0 else 1
+        f1 = evaluate.f1(recall, prec)
+        cv_stats['iRecall'].append(recall)
+        cv_stats['iPrec'].append(prec)
+        cv_stats['iF1'].append(f1)
+
     print('Accuracy:', np.mean(cv_stats['Accuracy']))
     print('Recall:', np.mean(cv_stats['Recall']))
     print('Prec:', np.mean(cv_stats['Prec']))
     print('F1:', np.mean(cv_stats['F1']))
+    print('Instance Recall:', np.mean(cv_stats['iRecall']))
+    print('Instance Prec:', np.mean(cv_stats['iPrec']))
+    print('Instance F1:', np.mean(cv_stats['iF1']))
     print('Totally {} arguments for all'.format(sum_of_total))
+    print('Totally {} instances for all'.format(sum_of_i_total))
 
 
 def pop_max(items, probs):

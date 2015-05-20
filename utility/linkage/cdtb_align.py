@@ -150,10 +150,11 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 connective = '-'.join(conncts)
                 connective_range[(label, rindices)] = (
                     start, end, detected_indices, connective, rtype, stype)
-                of.write('{}\t{}\t{}\t{}\n'.format(label,
-                                                   connective,
-                                                   new_offsets,
-                                                   rtype))
+                of.write('{}\t{}\t{}\t{}\t{}\n'.format(label,
+                                                       connective,
+                                                       new_offsets,
+                                                       rtype,
+                                                       stype))
 
     print('connective components:')
     print_distribution(stats)
