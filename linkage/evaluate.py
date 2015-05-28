@@ -152,6 +152,7 @@ def print_stats(tp, tn, fp, fn, label=None):
         print('\n' + label)
     print('negative: {}/{}, positive: {}/{}, accuracy: {}'.format(
         tn, tn + fp, tp, tp + fn, (tp + tn) / (tp + tn + fp + fn)))
+    print('total predicted: {}'.format(tp + fp))
 
     print_scores(tp / (tp + fn), tp / (tp + fp))
 

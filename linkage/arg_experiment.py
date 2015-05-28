@@ -238,8 +238,6 @@ def test(fhelper, args, test_args, corpus_file,
 
     # evaluation
     cv_stats = defaultdict(list)
-    sum_of_total = 0
-    sum_of_i_total = 0
     for i, crf_data, arg_spans in zip(fhelper.folds(), test_crf_data, preds):
         correct = 0
         tp = fp = total = 0
@@ -252,7 +250,7 @@ def test(fhelper, args, test_args, corpus_file,
                 correct += 1
                 if len(s) > 0:
                     i_tp += 1
-            else:
+            elif len(arg_span) > 0:
                 i_fp += 1
 
         for l in fhelper.test_set(i):
@@ -261,10 +259,11 @@ def test(fhelper, args, test_args, corpus_file,
                 total += len(s)
                 if len(s) > 0:
                     i_total += 1
-        sum_of_total += total
-        sum_of_i_total += i_total
-        print('Totally {} arguments'.format(total))
-        print('Totally {} instances'.format(i_total))
+        assert(sum(len(pds) for pds in arg_spans) == tp + fp)
+        cv_stats['Total'].append(total)
+        cv_stats['iTotal'].append(i_total)
+        cv_stats['Propose'].append(tp + fp)
+        cv_stats['iPropose'].append(i_tp + i_fp)
 
         accuracy = correct / len(arg_spans) if len(arg_spans) > 0 else 1
         recall = tp / total
@@ -289,8 +288,12 @@ def test(fhelper, args, test_args, corpus_file,
     print('Instance Recall:', np.mean(cv_stats['iRecall']))
     print('Instance Prec:', np.mean(cv_stats['iPrec']))
     print('Instance F1:', np.mean(cv_stats['iF1']))
-    print('Totally {} arguments for all'.format(sum_of_total))
-    print('Totally {} instances for all'.format(sum_of_i_total))
+    print('Totally {} arguments for all'.format(sum(cv_stats['Total'])))
+    print('Totally {} instances for all'.format(sum(cv_stats['iTotal'])))
+    print('Totally {} arguments predicted for all'.format(
+        sum(cv_stats['Propose'])))
+    print('Totally {} instances predicted for all'.format(
+        sum(cv_stats['iPropose'])))
 
 
 def pop_max(items, probs):
