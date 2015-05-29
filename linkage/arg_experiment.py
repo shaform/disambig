@@ -65,6 +65,8 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
+    parser.add_argument('--log', required=True,
+                        help='log file to output error analysis')
     parser.add_argument('--crfsuite', required=True)
     parser.add_argument('--train', required=True)
     parser.add_argument('--test', required=True)
@@ -186,8 +188,46 @@ def load_predict(fin, ranges):
     return arg_spans, probs
 
 
+def log_error(log, true_span, predict_span, item, corpus_file, *,
+              stats=defaultdict(int)):
+    l, c_indices, cEDU, tlabels, tfeatures = item
+    edus = corpus_file.EDUs(l)
+
+    log.write('== instance == \n')
+    log.write('true: {}\n'.format(list(sorted(true_span))))
+    log.write('predict: {}\n'.format(list(sorted(predict_span))))
+    log.write('correct?: {}\n'.format(true_span == predict_span))
+    log.write('cEDU: {}\n'.format(str(cEDU)))
+    log.write('{}\n'.format(' // '.join(edus)))
+
+    if len(true_span) > 0:
+        stats['length', len(c_indices)] += 1
+        d = min(cEDU) - min(min(true_span))
+        stats['left expand', len(c_indices), d] += 1
+        d = max(max(true_span)) - (max(cEDU) + 1)
+        d = (max(max(true_span)) - 1) - max(cEDU)
+        stats['right expand', len(c_indices), d] += 1
+        stats['max left', 0] = max(stats['max left', 0], min(cEDU))
+        stats['max right', 0] = max(
+            stats['max right', 0], len(edus) - max(cEDU) - 1)
+
+    if len(true_span) > 0 and len(c_indices) > 1:
+        if min(min(true_span)) < min(min(predict_span)):
+            stats['left true < predict', len(c_indices)] += 1
+
+        if min(min(true_span)) > min(min(predict_span)):
+            stats['left true > predict', len(c_indices)] += 1
+
+        if max(max(true_span)) < max(max(predict_span)):
+            stats['right true < predict', len(c_indices)] += 1
+
+        if max(max(true_span)) > max(max(predict_span)):
+            stats['right true > predict', len(c_indices)] += 1
+
+
 def test(fhelper, args, test_args, corpus_file,
          train_path, test_path, model_path, crf,
+         log_path,
          keep_boundary=False, hierarchy_ranges=False,
          hierarchy_adjust=False):
 
@@ -238,48 +278,52 @@ def test(fhelper, args, test_args, corpus_file,
 
     # evaluation
     cv_stats = defaultdict(list)
-    for i, crf_data, arg_spans in zip(fhelper.folds(), test_crf_data, preds):
-        correct = 0
-        tp = fp = total = 0
-        i_tp = i_fp = i_total = 0
-        for arg_span, item in zip(arg_spans, crf_data):
-            s = args.edu_truth[item[0]][item[1]]
-            tp += len(s & arg_span)
-            fp += len(arg_span - s)
-            if s == arg_span:
-                correct += 1
-                if len(s) > 0:
-                    i_tp += 1
-            elif len(arg_span) > 0:
-                i_fp += 1
+    log_stats = defaultdict(int)
+    with open(log_path, 'w') as log_out:
+        for i, crf_data, pds in zip(fhelper.folds(), test_crf_data, preds):
+            correct = 0
+            tp = fp = total = 0
+            i_tp = i_fp = i_total = 0
+            for arg_span, item in zip(pds, crf_data):
+                s = args.edu_truth[item[0]][item[1]]
+                log_error(log_out, s, arg_span, item, corpus_file,
+                          stats=log_stats)
+                tp += len(s & arg_span)
+                fp += len(arg_span - s)
+                if s == arg_span:
+                    correct += 1
+                    if len(s) > 0:
+                        i_tp += 1
+                elif len(arg_span) > 0:
+                    i_fp += 1
 
-        for l in fhelper.test_set(i):
-            d = args.edu_truth[l]
-            for s in d.values():
-                total += len(s)
-                if len(s) > 0:
-                    i_total += 1
-        assert(sum(len(pds) for pds in arg_spans) == tp + fp)
-        cv_stats['Total'].append(total)
-        cv_stats['iTotal'].append(i_total)
-        cv_stats['Propose'].append(tp + fp)
-        cv_stats['iPropose'].append(i_tp + i_fp)
+            for l in fhelper.test_set(i):
+                d = args.edu_truth[l]
+                for s in d.values():
+                    total += len(s)
+                    if len(s) > 0:
+                        i_total += 1
+            assert(sum(len(pds) for pds in pds) == tp + fp)
+            cv_stats['Total'].append(total)
+            cv_stats['iTotal'].append(i_total)
+            cv_stats['Propose'].append(tp + fp)
+            cv_stats['iPropose'].append(i_tp + i_fp)
 
-        accuracy = correct / len(arg_spans) if len(arg_spans) > 0 else 1
-        recall = tp / total
-        prec = tp / (tp + fp) if (tp + fp) > 0 else 1
-        f1 = evaluate.f1(recall, prec)
-        cv_stats['Accuracy'].append(accuracy)
-        cv_stats['Recall'].append(recall)
-        cv_stats['Prec'].append(prec)
-        cv_stats['F1'].append(f1)
+            accuracy = correct / len(pds) if len(pds) > 0 else 1
+            recall = tp / total
+            prec = tp / (tp + fp) if (tp + fp) > 0 else 1
+            f1 = evaluate.f1(recall, prec)
+            cv_stats['Accuracy'].append(accuracy)
+            cv_stats['Recall'].append(recall)
+            cv_stats['Prec'].append(prec)
+            cv_stats['F1'].append(f1)
 
-        recall = i_tp / i_total
-        prec = i_tp / (i_tp + i_fp) if (i_tp + i_fp) > 0 else 1
-        f1 = evaluate.f1(recall, prec)
-        cv_stats['iRecall'].append(recall)
-        cv_stats['iPrec'].append(prec)
-        cv_stats['iF1'].append(f1)
+            recall = i_tp / i_total
+            prec = i_tp / (i_tp + i_fp) if (i_tp + i_fp) > 0 else 1
+            f1 = evaluate.f1(recall, prec)
+            cv_stats['iRecall'].append(recall)
+            cv_stats['iPrec'].append(prec)
+            cv_stats['iF1'].append(f1)
 
     print('Accuracy:', np.mean(cv_stats['Accuracy']))
     print('Recall:', np.mean(cv_stats['Recall']))
@@ -294,6 +338,8 @@ def test(fhelper, args, test_args, corpus_file,
         sum(cv_stats['Propose'])))
     print('Totally {} instances predicted for all'.format(
         sum(cv_stats['iPropose'])))
+    print('log stats:')
+    evaluate.print_counts(log_stats)
 
 
 def pop_max(items, probs):
@@ -424,7 +470,9 @@ def main():
     test(fhelper, arguments, test_arguments,
          corpus_file,
          args.train, args.test, args.model, args.crfsuite,
-         keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust)
+         args.log,
+         keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust
+         )
 
 
 if __name__ == '__main__':

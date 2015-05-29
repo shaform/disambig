@@ -12,6 +12,11 @@ def f1(recall, prec):
         return 2 * recall * prec / (recall + prec)
 
 
+def print_counts(d):
+    for l, v in sorted(d.items()):
+        print(l, v)
+
+
 def print_scores(recall, prec, *, fscore=None, label=None):
     if label is not None:
         print(label + '\t', end='')

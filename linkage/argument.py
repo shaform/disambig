@@ -180,7 +180,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
     for s in tfeatures:
         s.add('CNNCT-' + cnnct)
         s.add('RTYPE-{}'.format(rtype))
-        s.add('STYPE-{}'.format(stype))
+        # s.add('STYPE-{}'.format(stype))
         s.add('CNNCT_NUM:{}'.format(cnnct.count('-') + 1))
 
     connective_features(tfeatures, EDUs, c_indices)

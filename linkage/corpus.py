@@ -35,6 +35,15 @@ class CorpusFile(object):
         for l, tokens in self.corpus.items():
             self.edu_corpus[l] = argument.get_EDU_offsets(tokens)
 
+    def EDUs(self, label):
+        tokens = self.corpus[label]
+        edu = self.edu_corpus[label]
+        segments = []
+        for start, end in edu:
+            segments.append(' '.join(tokens[start:end]))
+
+        return segments
+
 
 class VectorFile(object):
 
