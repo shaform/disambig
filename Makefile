@@ -1,5 +1,6 @@
 GLOVE = $(DISAMBIG_TOOL)/glove
 WORD2VEC = $(DISAMBIG_TOOL)/word2vec
+NLPPARSER = $(DISAMBIG_TOOL)/stanford-parser-full
 LIBSVM_TRAIN = $(DISAMBIG_TOOL)/liblinear/train
 LIBSVM_SCALE = $(DISAMBIG_TOOL)/libsvm/train-scale
 CRFSUITE = $(DISAMBIG_TOOL)/crfsuite/frontend/crfsuite
@@ -21,6 +22,7 @@ LCORPUS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.txt
 LINKAGE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage.txt
 ARGUMENT_FILE = $(DISAMBIG_DATA)/linkage/cdtb_argument.txt
 ARGUMENT_PREDICT_FILE = $(DISAMBIG_DATA)/linkage/cdtb_argument_predict.txt
+LCORPUS_DEP_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.dep.txt
 
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
@@ -105,6 +107,11 @@ d_filter_vectors:
 # filter word2vec vectors
 d_filter_w2v_vectors:
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LW2V_VECTOR_FILE)
+
+d_dep_parse:
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/dep_parse.py --corpus $(LCORPUS_FILE) --input $(TMP)/NONE --label $(TMP)/labels.txt --output $(TMP)/tmp.txt preprocess
+	java -Xmx"60g" -cp "$(CLASSPATH)":"$(NLPPARSER)/*" edu.stanford.nlp.parser.lexparser.LexicalizedParser -maxLength 600 -tLPP edu.stanford.nlp.parser.lexparser.ChineseTreebankParserParams -chineseFactored -encoding UTF-8 -tokenized -sentences newline -escaper edu.stanford.nlp.trees.international.pennchinese.ChineseEscaper -writeOutputFiles -outputFormat "typedDependencies" -outputFormatOptions "removeTopBracket,includePunctuationDependencies" -loadFromSerializedFile edu/stanford/nlp/models/lexparser/chineseFactored.ser.gz $(TMP)/tmp.txt
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/dep_parse.py --corpus $(LCORPUS_FILE) --label $(TMP)/labels.txt --input $(TMP)/tmp.txt.stp --output $(LCORPUS_DEP_FILE) postprocess
 
 ## -- connective experiments -- ##
 
