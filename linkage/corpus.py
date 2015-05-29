@@ -8,18 +8,30 @@ from collections import defaultdict
 from nltk.tree import ParentedTree
 
 
-def load_corpus(path, postprocess=lambda x: x.split()):
+def load_corpus(path,
+                postprocess=lambda x: x.split(),
+                preprocess=lambda x: x.rstrip('\n').split('\t')):
     d = {}
     with open(path) as f:
         for l in f:
-            label, tokens = l.rstrip('\n').split('\t')
+            label, tokens = preprocess(l)
             d[label] = postprocess(tokens)
     return d
 
 
+def preprocess_dep_entry(l):
+    label, *entries = l.rstrip('\n').split('\t')
+    return label, entries
+
+
+def postprocess_dep_entry(entries):
+    return [set(entry.split('@@@@')) for entry in entries]
+
+
 class CorpusFile(object):
 
-    def __init__(self, corpus_path, pos_path=None, parse_path=None):
+    def __init__(self, corpus_path, pos_path=None, parse_path=None,
+                 dep_path=None):
         self.corpus = load_corpus(corpus_path)
         self.pos_corpus = {}
         if pos_path is not None:
@@ -34,6 +46,15 @@ class CorpusFile(object):
         self.edu_corpus = {}
         for l, tokens in self.corpus.items():
             self.edu_corpus[l] = argument.get_EDU_offsets(tokens)
+
+        self.dep_corpus = {}
+        if dep_path is not None:
+            self.dep_corpus = load_corpus(dep_path,
+                                          postprocess_dep_entry,
+                                          preprocess_dep_entry,
+                                          )
+            for l, dp in self.dep_corpus.items():
+                assert(len(dp) == len(self.edu_corpus[l]))
 
     def EDUs(self, label):
         tokens = self.corpus[label]

@@ -63,6 +63,8 @@ def process_commands():
                         help='pos-tagged raw corpus file')
     parser.add_argument('--corpus_parse', required=True,
                         help='syntax-parsed raw corpus file')
+    parser.add_argument('--corpus_dep', required=True,
+                        help='dep-parsed corpus file')
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
     parser.add_argument('--log', required=True,
@@ -88,6 +90,7 @@ def extract_features(corpus_file, arguments, test_arguments):
 
         pos_tokens = corpus_file.pos_corpus[l]
         parsed = corpus_file.parse_corpus[l]
+        deps = corpus_file.dep_corpus[l]
         EDUs = corpus_file.edu_corpus[l]
 
         for arg in test_arguments.arguments(l):
@@ -95,12 +98,12 @@ def extract_features(corpus_file, arguments, test_arguments):
             arg = list(arg)
             arg[-1] = a_indices
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
-                EDUs, tokens, pos_tokens, parsed, arg)
+                EDUs, tokens, pos_tokens, parsed, deps, arg)
             test_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
         for arg in arguments.arguments(l):
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
-                EDUs, tokens, pos_tokens, parsed, arg)
+                EDUs, tokens, pos_tokens, parsed, deps, arg)
             data_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
     return data_set, test_set
@@ -339,7 +342,7 @@ def test(fhelper, args, test_args, corpus_file,
     print('Totally {} instances predicted for all'.format(
         sum(cv_stats['iPropose'])))
     print('log stats:')
-    evaluate.print_counts(log_stats)
+    # evaluate.print_counts(log_stats)
 
 
 def pop_max(items, probs):
@@ -462,7 +465,8 @@ def main():
     arguments = argument.ArgumentFile(args.argument)
     test_arguments = argument.ArgumentFile(args.argument_test)
     corpus_file = corpus.CorpusFile(
-        args.corpus, args.corpus_pos, args.corpus_parse)
+        args.corpus, args.corpus_pos, args.corpus_parse,
+        args.corpus_dep)
     fhelper = corpus.FoldsHelper(args.folds)
 
     keep_boundary = args.keep_boundary and args.argument == args.argument_test

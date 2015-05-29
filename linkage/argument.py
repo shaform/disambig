@@ -166,7 +166,20 @@ def path_features(s, parsed, from_pos, to_pos):
     s.add(fname)
 
 
-def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
+def extract_dep_features(s, dep):
+    for item in dep:
+        if item.startswith('nsubj'):
+            s.add('HAS_SUBJ')
+            subj = item.rsplit(', ', 1)[1].split('-')[0]
+            # s.add('SUBJ-{}'.format(subj))
+            # print(item)
+            break
+    else:
+        s.add('NO_SUBJ')
+        # nsubj(决定-4, 政府-2)
+
+
+def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, arg):
     cnnct, rtype, stype, c_indices, a_indices = arg
     cnncts = cnnct.split('-')
     tlen = len(EDUs)
@@ -181,7 +194,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
         s.add('CNNCT-' + cnnct)
         s.add('RTYPE-{}'.format(rtype))
         # s.add('STYPE-{}'.format(stype))
-        s.add('CNNCT_NUM:{}'.format(cnnct.count('-') + 1))
+        s.add('CNNCT_NUM-{}'.format(cnnct.count('-') + 1))
 
     connective_features(tfeatures, EDUs, c_indices)
     c_spans = []
@@ -210,6 +223,9 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, arg):
                 s.add('HAS_CONNCT')
                 cnnct_EDUs.add(i)
                 break
+
+        dep = deps[i]
+        extract_dep_features(s, dep)
 
         for j in range(span[0], span[1]):
             t = tokens[j]
