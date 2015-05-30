@@ -221,8 +221,11 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
         end = get_end_index(span, tokens)
         if start in sindices:
             s.add('CNNCT_START')
-        if end in sindices:
+        if end in eindices:
             s.add('CNNCT_END')
+        if start in sindices and end in eindices:
+            s.add('CNNCT_ONLY')
+
         for indices, cnnct_comp in zip(c_indices, cnncts):
             if span[0] <= indices[0] < span[1]:
                 s.add('HAS_CONNCT')
