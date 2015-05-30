@@ -278,17 +278,22 @@ def rule_based(arg_spans, crf_data, corpus_file):
     for arg_span, cdata in zip(arg_spans, crf_data):
         if len(arg_span) == 0:
             continue
+
         if len(arg_span) == 1:
             arg_span.clear()
-        '''
+            continue
+
         l, c_indices, cEDU, tlabels, tfeatures = cdata
         edus = corpus_file.EDUs(l)
         start, end = max(arg_span)
-        if end < len(edus):
+        if end == len(edus) - 1 and min(arg_span)[0] <= 1:
             if edus[end].endswith('。') and edus[end - 1].endswith('，'):
                 arg_span.remove((start, end))
                 arg_span.add((start, end + 1))
-        '''
+
+    for arg_span in arg_spans:
+        assert(len(arg_span) != 1)
+
     return arg_spans
 
 
@@ -340,7 +345,6 @@ def test(fhelper, train_args, test_args, corpus_file,
         p.wait()
         arg_spans, probs = load_predict(p.stdout, ranges)
         assert(len(arg_spans) == len(crf_data))
-        arg_spans = rule_based(arg_spans, crf_data, corpus_file)
         preds.append(arg_spans)
         pred_probs.append(probs)
 
@@ -350,6 +354,9 @@ def test(fhelper, train_args, test_args, corpus_file,
                                            preds,
                                            pred_probs):
             handle_hierarchy_adjust(crf_data, pds, probs, i, predictor)
+
+    for arg_spans, crf_data in zip(preds, test_crf_data):
+        arg_spans = rule_based(arg_spans, crf_data, corpus_file)
 
     # evaluation
     cv_stats = defaultdict(list)
