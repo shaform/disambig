@@ -189,10 +189,10 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
     cnnct_EDUs = set()
     tfeatures = [set() for _ in range(tlen)]
 
-    if cnnct in linkings:
-        for s in tfeatures:
-            for t in linkings[cnnct]:
-                s.add('LINKING-{}'.format(t))
+    # if cnnct in linkings:
+    #    for s in tfeatures:
+    #        for t in linkings[cnnct]:
+    #            s.add('LINKING-{}'.format(t))
 
     # set features
     for s in tfeatures:
@@ -229,6 +229,9 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
         for indices, cnnct_comp in zip(c_indices, cnncts):
             if span[0] <= indices[0] < span[1]:
                 s.add('HAS_CONNCT')
+                # if cnnct_comp in linkings:
+                #    for t in linkings[cnnct_comp]:
+                #        s.add('IN_LINKING-{}'.format(t))
                 cnnct_EDUs.add(i)
                 break
 

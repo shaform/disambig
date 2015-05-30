@@ -218,6 +218,7 @@ def log_error(log, true_span, predict_span, item, corpus_file, *,
 
     if len(true_span) > 0 and true_span != predict_span:
         log.write('== instance == \n')
+        log.write('label: {}\n'.format(l))
         log.write('true: {}\n'.format(list(sorted(true_span))))
         log.write('predict: {}\n'.format(list(sorted(predict_span))))
         log.write('cEDU: {}\n'.format(str(cEDU)))
