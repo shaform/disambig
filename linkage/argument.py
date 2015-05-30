@@ -179,7 +179,7 @@ def extract_dep_features(s, dep):
         # nsubj(决定-4, 政府-2)
 
 
-def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, arg):
+def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
     cnnct, rtype, stype, c_indices, a_indices = arg
     cnncts = cnnct.split('-')
     tlen = len(EDUs)
@@ -188,6 +188,11 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, arg):
     assert(len(arg_offsets) == tlabels.count(_BEGIN))
     cnnct_EDUs = set()
     tfeatures = [set() for _ in range(tlen)]
+
+    if cnnct in linkings:
+        for s in tfeatures:
+            for t in linkings[cnnct]:
+                s.add('LINKING-{}'.format(t))
 
     # set features
     for s in tfeatures:

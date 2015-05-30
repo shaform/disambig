@@ -134,6 +134,7 @@ LLINKAGE_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_features.txt
 LLINKAGE_PFEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_features.txt
 LFOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
 L10FOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
+LLINKING_FILE = $(DISAMBIG_DATA)/connective/ntu_connective_linking.txt
 
 # 1. extract features for each word
 l_extract_word_features:
@@ -169,11 +170,11 @@ l_sense_experiment:
 
 # 7. run argument experiment
 l_arg_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_PREDICT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --log $(TMP)/error_analysis.txt --hierarchy_adjust #--keep_boundary
+	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_PREDICT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --linking $(LLINKING_FILE) --log $(TMP)/error_analysis.txt --hierarchy_adjust #--hierarchy_ranges #--bounded 10 #--keep_boundary
 
 # 8. run perfect argument experiment
 l_perfect_arg_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --log $(TMP)/error_analysis.txt --hierarchy_adjust #--keep_boundary
+	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --linking $(LLINKING_FILE) --log $(TMP)/error_analysis.txt --hierarchy_adjust #--keep_boundary
 
 l_statistics:
 	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/statistics.py --tag $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE)

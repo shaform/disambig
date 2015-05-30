@@ -65,6 +65,8 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--corpus_dep', required=True,
                         help='dep-parsed corpus file')
+    parser.add_argument('--linking', required=True)
+    parser.add_argument('--bounded', type=int)
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
     parser.add_argument('--log', required=True,
@@ -80,7 +82,7 @@ def process_commands():
     return parser.parse_args()
 
 
-def extract_features(corpus_file, arguments, test_arguments):
+def extract_features(corpus_file, linkings, arguments, test_arguments):
     data_set = defaultdict(list)
     test_set = defaultdict(list)
     counter = evaluate.ProgressCounter()
@@ -98,12 +100,12 @@ def extract_features(corpus_file, arguments, test_arguments):
             arg = list(arg)
             arg[-1] = a_indices
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
-                EDUs, tokens, pos_tokens, parsed, deps, arg)
+                EDUs, tokens, pos_tokens, parsed, deps, linkings, arg)
             test_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
         for arg in arguments.arguments(l):
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
-                EDUs, tokens, pos_tokens, parsed, deps, arg)
+                EDUs, tokens, pos_tokens, parsed, deps, linkings, arg)
             data_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
     return data_set, test_set
@@ -129,12 +131,24 @@ def get_ranges(crf_data):
     return ranges
 
 
-def get_hierarchy_ranges(crf_data, edu_spans, hierarchy_ranges=False):
+def get_bounded_ranges(crf_data, bounded=None):
+    if bounded is None:
+        return None
+
+    ranges = []
+    for _, _, cEDU, labels, _ in crf_data:
+        start = max(0, min(cEDU) - bounded)
+        end = min(len(labels), max(cEDU) + 1 + bounded)
+        rs = [(start, end)]
+
+        ranges.append(rs)
+    return ranges
+
+
+def get_hierarchy_ranges(crf_data, edu_spans):
     ranges = []
     for l, c_indices, _, _, _ in crf_data:
         rs = edu_spans[l][c_indices]
-        if not hierarchy_ranges:
-            rs = rs[-1:]
         ranges.append(rs)
     return ranges
 
@@ -194,16 +208,48 @@ def load_predict(fin, ranges):
 def log_error(log, true_span, predict_span, item, corpus_file, *,
               stats=defaultdict(int)):
     l, c_indices, cEDU, tlabels, tfeatures = item
-    edus = corpus_file.EDUs(l)
+    tokens = list(corpus_file.corpus[l])
+    for indices in c_indices:
+        start = indices[0]
+        end = indices[-1]
+        tokens[start] = '_@' + tokens[start]
+        tokens[end] = tokens[start] + '@_'
+    edus = corpus_file.EDUs(l, tokens)
 
-    log.write('== instance == \n')
-    log.write('true: {}\n'.format(list(sorted(true_span))))
-    log.write('predict: {}\n'.format(list(sorted(predict_span))))
-    log.write('correct?: {}\n'.format(true_span == predict_span))
-    log.write('cEDU: {}\n'.format(str(cEDU)))
-    log.write('{}\n'.format(' // '.join(edus)))
+    if len(true_span) > 0 and true_span != predict_span:
+        log.write('== instance == \n')
+        log.write('true: {}\n'.format(list(sorted(true_span))))
+        log.write('predict: {}\n'.format(list(sorted(predict_span))))
+        log.write('cEDU: {}\n'.format(str(cEDU)))
 
-    if len(true_span) > 0:
+        starts = set()
+        ends = set()
+        pstarts = set()
+        pends = set()
+
+        for s, e in true_span:
+            starts.add(s)
+            ends.add(e)
+
+        for s, e in predict_span:
+            pstarts.add(s)
+            pends.add(e)
+
+        annotated_edus = []
+        for i, item in enumerate(edus):
+            if i in starts:
+                item = '_<' + item
+            if i in pstarts:
+                item = '_[' + item
+            if i + 1 in ends:
+                item = item + '_>'
+            if i + 1 in pends:
+                item = item + '_]'
+            annotated_edus.append(item)
+
+        log.write('{}\n'.format(' // '.join(annotated_edus)))
+
+    if len(true_span) > 0 and len(predict_span) > 0:
         stats['length', len(c_indices)] += 1
         d = min(cEDU) - min(min(true_span))
         stats['left expand', len(c_indices), d] += 1
@@ -214,28 +260,49 @@ def log_error(log, true_span, predict_span, item, corpus_file, *,
         stats['max right', 0] = max(
             stats['max right', 0], len(edus) - max(cEDU) - 1)
 
-    if len(true_span) > 0 and len(c_indices) > 1:
-        if min(min(true_span)) < min(min(predict_span)):
-            stats['left true < predict', len(c_indices)] += 1
+        if len(c_indices) > 1:
+            if min(min(true_span)) < min(min(predict_span)):
+                stats['left true < predict', len(c_indices)] += 1
 
-        if min(min(true_span)) > min(min(predict_span)):
-            stats['left true > predict', len(c_indices)] += 1
+            if min(min(true_span)) > min(min(predict_span)):
+                stats['left true > predict', len(c_indices)] += 1
 
-        if max(max(true_span)) < max(max(predict_span)):
-            stats['right true < predict', len(c_indices)] += 1
+            if max(max(true_span)) < max(max(predict_span)):
+                stats['right true < predict', len(c_indices)] += 1
 
-        if max(max(true_span)) > max(max(predict_span)):
-            stats['right true > predict', len(c_indices)] += 1
+            if max(max(true_span)) > max(max(predict_span)):
+                stats['right true > predict', len(c_indices)] += 1
 
 
-def test(fhelper, args, test_args, corpus_file,
+def rule_based(arg_spans, crf_data, corpus_file):
+    for arg_span, cdata in zip(arg_spans, crf_data):
+        if len(arg_span) == 0:
+            continue
+        if len(arg_span) == 1:
+            arg_span.clear()
+        '''
+        l, c_indices, cEDU, tlabels, tfeatures = cdata
+        edus = corpus_file.EDUs(l)
+        start, end = max(arg_span)
+        if end < len(edus):
+            if edus[end].endswith('。') and edus[end - 1].endswith('，'):
+                arg_span.remove((start, end))
+                arg_span.add((start, end + 1))
+        '''
+    return arg_spans
+
+
+def test(fhelper, train_args, test_args, corpus_file,
+         linkings,
          train_path, test_path, model_path, crf,
          log_path,
+         bounded=None,
          keep_boundary=False, hierarchy_ranges=False,
          hierarchy_adjust=False):
 
-    args.init_truth(corpus_file)
-    data_set, test_set = extract_features(corpus_file, args, test_args)
+    train_args.init_truth(corpus_file)
+    data_set, test_set = extract_features(corpus_file,
+                                          linkings, train_args, test_args)
 
     predictor = Predictor(crf, model_path, train_path, test_path)
 
@@ -245,8 +312,10 @@ def test(fhelper, args, test_args, corpus_file,
         crf_data = extract_crf_data(fhelper.train_set(i), data_set)
         if keep_boundary:
             crf_ranges = get_ranges(crf_data)
+        elif hierarchy_ranges:
+            crf_ranges = get_hierarchy_ranges(crf_data, train_args.edu_spans)
         else:
-            crf_ranges = get_hierarchy_ranges(crf_data, args.edu_spans)
+            crf_ranges = get_bounded_ranges(crf_data, bounded)
         test_crf_data.append(extract_crf_data(fhelper.test_set(i), test_set))
 
         processes.append(predictor.train(i, crf_data, crf_ranges))
@@ -255,9 +324,11 @@ def test(fhelper, args, test_args, corpus_file,
 
     print('start testing')
     processes = []
-    test_crf_ranges = [None] * len(test_crf_data)
     if keep_boundary:
         test_crf_ranges = [get_ranges(crf_data) for crf_data in test_crf_data]
+    else:
+        test_crf_ranges = [get_bounded_ranges(crf_data, bounded)
+                           for crf_data in test_crf_data]
 
     for i in fhelper.folds():
         processes.append(
@@ -269,6 +340,7 @@ def test(fhelper, args, test_args, corpus_file,
         p.wait()
         arg_spans, probs = load_predict(p.stdout, ranges)
         assert(len(arg_spans) == len(crf_data))
+        arg_spans = rule_based(arg_spans, crf_data, corpus_file)
         preds.append(arg_spans)
         pred_probs.append(probs)
 
@@ -288,7 +360,7 @@ def test(fhelper, args, test_args, corpus_file,
             tp = fp = total = 0
             i_tp = i_fp = i_total = 0
             for arg_span, item in zip(pds, crf_data):
-                s = args.edu_truth[item[0]][item[1]]
+                s = train_args.edu_truth[item[0]][item[1]]
                 log_error(log_out, s, arg_span, item, corpus_file,
                           stats=log_stats)
                 tp += len(s & arg_span)
@@ -301,7 +373,7 @@ def test(fhelper, args, test_args, corpus_file,
                     i_fp += 1
 
             for l in fhelper.test_set(i):
-                d = args.edu_truth[l]
+                d = train_args.edu_truth[l]
                 for s in d.values():
                     total += len(s)
                     if len(s) > 0:
@@ -370,6 +442,8 @@ def get_pred_span(pd):
 
 
 def is_inner(cEDUs, pd, start, end, outer):
+    if len(pd) == 0:
+        return None
     # check if span is less than item
     i_start, i_end = get_pred_span(pd)
     if i_end - i_start >= end - start:
@@ -452,6 +526,8 @@ def handle_hierarchy_adjust(crf_data, preds, probs, fold, predictor):
     for items in instances.values():
         while len(items) > 0:
             idx = pop_max(items, probs)
+            if len(preds[idx]) == 0:
+                continue
             pds = get_items(items, preds)
             cds = get_items(items, crf_data)
             reduce_inner(
@@ -462,6 +538,7 @@ def handle_hierarchy_adjust(crf_data, preds, probs, fold, predictor):
 
 def main():
     args = process_commands()
+    linkings = corpus.load_linking(args.linking)
     arguments = argument.ArgumentFile(args.argument)
     test_arguments = argument.ArgumentFile(args.argument_test)
     corpus_file = corpus.CorpusFile(
@@ -473,8 +550,10 @@ def main():
 
     test(fhelper, arguments, test_arguments,
          corpus_file,
+         linkings,
          args.train, args.test, args.model, args.crfsuite,
          args.log,
+         args.bounded,
          keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust
          )
 

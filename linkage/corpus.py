@@ -8,6 +8,16 @@ from collections import defaultdict
 from nltk.tree import ParentedTree
 
 
+def load_linking(path):
+    link = {}
+    with open(path) as f:
+        for l in f:
+            cnnct, tps = l.strip().split('\t')
+            link[cnnct.split('(')[0]] = set(tps.split('/'))
+
+    return link
+
+
 def load_corpus(path,
                 postprocess=lambda x: x.split(),
                 preprocess=lambda x: x.rstrip('\n').split('\t')):
@@ -56,8 +66,9 @@ class CorpusFile(object):
             for l, dp in self.dep_corpus.items():
                 assert(len(dp) == len(self.edu_corpus[l]))
 
-    def EDUs(self, label):
-        tokens = self.corpus[label]
+    def EDUs(self, label, tokens=None):
+        if tokens is None:
+            tokens = self.corpus[label]
         edu = self.edu_corpus[label]
         segments = []
         for start, end in edu:
