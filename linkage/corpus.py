@@ -9,11 +9,12 @@ from nltk.tree import ParentedTree
 
 
 def load_linking(path):
-    link = {}
+    link = defaultdict(set)
     with open(path) as f:
         for l in f:
             cnnct, tps = l.strip().split('\t')
-            link[cnnct.split('(')[0]] = set(tps.split('/'))
+            for tp in tps.split('/'):
+                link[cnnct.split('(')[0]].add(tp)
 
     return link
 

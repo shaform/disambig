@@ -166,7 +166,14 @@ def path_features(s, parsed, from_pos, to_pos):
     s.add(fname)
 
 
-def extract_dep_features(s, dep):
+def extract_dep_features(s, dep, pdep):
+    psubj = None
+    if pdep is not None:
+        for item in pdep:
+            if item.startswith('nsubj'):
+                psubj = item.rsplit(', ', 1)[1].split('-')[0]
+                break
+    subj = None
     for item in dep:
         if item.startswith('nsubj'):
             s.add('HAS_SUBJ')
@@ -174,9 +181,9 @@ def extract_dep_features(s, dep):
             # s.add('SUBJ-{}'.format(subj))
             # print(item)
             break
-    else:
-        s.add('NO_SUBJ')
-        # nsubj(决定-4, 政府-2)
+
+    if psubj != subj:
+        s.add('SUBJ_CHANGED')
 
 
 def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
@@ -190,9 +197,9 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
     tfeatures = [set() for _ in range(tlen)]
 
     # if cnnct in linkings:
-    #    for s in tfeatures:
-    #        for t in linkings[cnnct]:
-    #            s.add('LINKING-{}'.format(t))
+    #     for s in tfeatures:
+    #         for t in linkings[cnnct]:
+    #             s.add('LINKING-{}'.format(t))
 
     # set features
     for s in tfeatures:
@@ -229,14 +236,15 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
         for indices, cnnct_comp in zip(c_indices, cnncts):
             if span[0] <= indices[0] < span[1]:
                 s.add('HAS_CONNCT')
-                # if cnnct_comp in linkings:
-                #    for t in linkings[cnnct_comp]:
-                #        s.add('IN_LINKING-{}'.format(t))
+                if cnnct_comp in linkings:
+                    for t in linkings[cnnct_comp]:
+                        s.add('IN_LINKING-{}'.format(t))
                 cnnct_EDUs.add(i)
                 break
 
         dep = deps[i]
-        extract_dep_features(s, dep)
+        pdep = deps[i - 1] if i > 0 else None
+        extract_dep_features(s, dep, pdep)
 
         for j in range(span[0], span[1]):
             t = tokens[j]
