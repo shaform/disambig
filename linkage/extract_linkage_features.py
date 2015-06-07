@@ -22,7 +22,7 @@ GLOVE = 'GLOVE'
 
 def process_commands():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--tag', required=True,
+    parser.add_argument('--connective', required=True,
                         help='connective file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
@@ -230,7 +230,7 @@ def main():
 
     truth = linkage.LinkageFile(args.linkage)
     fhelper = corpus.FoldsHelper(args.folds)
-    detector = linkage.LinkageDetector(args.tag)
+    detector = linkage.LinkageDetector(args.connective)
     vectors = corpus.VectorFile(args.vector)
     corpus_file = corpus.CorpusFile(
         args.corpus, args.corpus_pos, args.corpus_parse)

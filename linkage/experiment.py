@@ -15,7 +15,7 @@ def process_commands():
     parser = argparse.ArgumentParser()
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
-    parser.add_argument('--tag', required=True,
+    parser.add_argument('--connective', required=True,
                         help='connective token file')
     parser.add_argument('--word_ambig', required=True,
                         help='word ambiguity file')
@@ -409,7 +409,7 @@ def main():
     fhelper = corpus.FoldsHelper(args.folds)
     truth = linkage.LinkageFile(args.linkage)
     words = truth.all_words()
-    detector = linkage.LinkageDetector(args.tag)
+    detector = linkage.LinkageDetector(args.connective)
     feature_tbl = features.load_features_table(
         args.linkage_features, lambda x: tuple(x.split('-')))
 

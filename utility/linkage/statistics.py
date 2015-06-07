@@ -10,7 +10,7 @@ from collections import defaultdict
 
 def process_commands():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--tag', required=True,
+    parser.add_argument('--connective', required=True,
                         help='connective file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
@@ -126,7 +126,7 @@ def stat_all_detect(detector, corpus_file, truth):
 def main():
     args = process_commands()
 
-    detector = linkage.LinkageDetector(args.tag)
+    detector = linkage.LinkageDetector(args.connective)
     corpus_file = corpus.CorpusFile(args.corpus)
     truth = linkage.LinkageFile(args.linkage)
 

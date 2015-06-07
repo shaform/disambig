@@ -14,14 +14,14 @@ def all_indices(s, target, offset=0):
 ITEM_FORMAT = '{}[{}:{}]'
 
 
-def extract_item(tag, tokens, it, continuous=False):
+def extract_item(connective, tokens, it, continuous=False):
     item = []
     text = ''
     for i in range(it, len(tokens)):
         text += tokens[i]
-        if tag.startswith(text):
+        if connective.startswith(text):
             item.append(ITEM_FORMAT.format(i, 0, len(tokens[i])))
-            if tag == text:
+            if connective == text:
                 return i, item
             elif not continuous:
                 break
@@ -126,10 +126,14 @@ class LinkageFile(object):
 
 class LinkageDetector(object):
 
-    def __init__(self, tag_path):
+    def __init__(self, connective_path):
         """Creates likage detector by connective token file"""
-        with open(tag_path, 'r') as f:
-            self.tags = {tuple(l.rstrip().split('\t')) for l in f}
+        with open(connective_path, 'r') as f:
+            self.connectives = {tuple(l.rstrip().split('\t')) for l in f}
+            self.components = set()
+            for connective in self.connectives:
+                for component in connective:
+                    self.components.add(component)
 
     def all_tokens(self, tokens, *, continuous=True, cross=False, truth=None):
         list_of_tokens = list(self.detect_by_tokens(tokens,
@@ -145,20 +149,23 @@ class LinkageDetector(object):
         return list_of_tokens
 
     def detect_by_tokens(self, tokens, *, continuous=True, cross=False):
-        for tag in self.tags:
-            for indices in self.extract_tag(0, tag, 0, tokens,
-                                            continuous=continuous,
-                                            cross=cross):
-                yield tag, indices
+        for connective in self.connectives:
+            for indices in self.extract_connective(0, connective, 0, tokens,
+                                                   continuous=continuous,
+                                                   cross=cross):
+                yield connective, indices
+
+    def detect_all_tokens(self, tokens):
+        pass
 
     def detect_all(self, tokens):
-        for tag in self.tags:
-            for indices in self.extract_all_tag(0, tag, 0, tokens,
-                                                ''.join(tokens)):
-                yield tag, indices
+        for connective in self.connectives:
+            for indices in self.extract_all_connective(0, connective, 0, tokens,
+                                                       ''.join(tokens)):
+                yield connective, indices
 
-    def extract_tag(self, idx, tag, it, tokens, *,
-                    items=None, continuous=False, cross=False):
+    def extract_connective(self, idx, connective, it, tokens, *,
+                           items=None, continuous=False, cross=False):
         """
         continuous: include continuous tokens
         cross: must cross boundary
@@ -166,12 +173,12 @@ class LinkageDetector(object):
         if items is None:
             items = []
 
-        if idx >= len(tag):
+        if idx >= len(connective):
             yield items_to_tuple(items)
         else:
             for i in range(it, len(tokens)):
                 offset, item = extract_item(
-                    tag[idx], tokens, i, continuous)
+                    connective[idx], tokens, i, continuous)
                 if item is not None:
                     items.append(item)
                     if cross:
@@ -180,28 +187,28 @@ class LinkageDetector(object):
                                 break
                             else:
                                 offset += 1
-                    yield from self.extract_tag(
-                        idx + 1, tag, offset + 1, tokens,
+                    yield from self.extract_connective(
+                        idx + 1, connective, offset + 1, tokens,
                         items=items, continuous=continuous)
                     items.pop()
 
-    def extract_all_tag(self, idx, tag, start, tokens, text, *,
-                        offsets=None):
+    def extract_all_connective(self, idx, connective, start, tokens, text, *,
+                               offsets=None):
         if offsets is None:
             offsets = []
 
-        if idx >= len(tag):
+        if idx >= len(connective):
             items = offsets_to_items(offsets, tokens, text)
             yield items_to_tuple(items)
         else:
-            component = tag[idx]
+            component = connective[idx]
             while True:
                 offset = text.find(component, start)
                 if offset != -1:
                     end = offset + len(component)
                     offsets.append((offset, end))
-                    yield from self.extract_all_tag(
-                        idx + 1, tag, end, tokens, text,
+                    yield from self.extract_all_connective(
+                        idx + 1, connective, end, tokens, text,
                         offsets=offsets)
                     offsets.pop()
 
