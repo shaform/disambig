@@ -155,8 +155,14 @@ class LinkageDetector(object):
                                                    cross=cross):
                 yield connective, indices
 
-    def detect_all_tokens(self, tokens):
-        pass
+    def detect_all_components(self, tokens):
+        for component in self.components:
+            for indices in self.extract_all_connective(0,
+                                                       (component,),
+                                                       0,
+                                                       tokens,
+                                                       ''.join(tokens)):
+                yield component, indices[0]
 
     def detect_all(self, tokens):
         for connective in self.connectives:

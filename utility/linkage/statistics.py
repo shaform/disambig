@@ -53,6 +53,8 @@ def stat_all_detect(detector, corpus_file, truth):
     cand_connective_count = 0
     recall_component_count = 0
     cand_component_count = 0
+    t_recall_component_count = 0
+    t_cand_component_count = 0
 
     length_count = defaultdict(int)
     disambig_count = defaultdict(int)
@@ -93,6 +95,16 @@ def stat_all_detect(detector, corpus_file, truth):
                 for x in c:
                     disambig_count[(l, x)] = 1
 
+        components = set()
+        # collect stats by purely components
+        for _, pos in detector.detect_all_components(tokens):
+            components.add(pos)
+
+        t_cand_component_count += len(components)
+        for x in components:
+            if (l, x) in words:
+                t_recall_component_count += 1
+
     # print stats
 
     print()
@@ -109,6 +121,13 @@ def stat_all_detect(detector, corpus_file, truth):
         recall_component_count,
         cand_component_count,
         'components'
+    )
+
+    print_total_recall_cand(
+        len(truth.all_words()),
+        t_recall_component_count,
+        t_cand_component_count,
+        'token components'
     )
 
     print('length')
