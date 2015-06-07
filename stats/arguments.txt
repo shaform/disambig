@@ -58,6 +58,9 @@ self-corrected offsets
 242 P3 R7
 119 P4 R4
 
+self-corrected connective
+448 P3 R2
+
 # match arguments greater than connective length
 '并列关系': 108
 '选择关系': 2  # 1 to >= 3
