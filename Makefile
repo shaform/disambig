@@ -15,6 +15,8 @@ LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
 CNNCT_CORPUS = $(DISAMBIG_BIG_DATA)/connective/corpus.txt
 CLUE_SENT_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.sent.vectors.txt
 CLUE_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.word.vectors.txt
+CLUE_SKIP_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.skip.word.vectors.txt
+CLUE_CBOW_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.cbow.word.vectors.txt
 
 CDTB_RAW_GB_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus
 CDTB_RAW_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus-utf8
@@ -65,10 +67,19 @@ c_process_corpus:
 	python3 $(DISAMBIG_PRG)/utility/connective/filter.py --corpus $(CLUE_CORPUS_CNNCT) --cnnct $(NTU_CNNCT) --output $(TMP)/4300W.labeled.txt
 	cp $(TMP)/4300W.labeled.txt $(LABELED_CLUE_CORPUS)
 
+# construct word vectors for clueweb
+c_word2vec:
+	shuf $(CLUE_CORPUS) > $(TMP)/4300W.raw.txt
+	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.raw.txt -output $(TMP)/4300W.skip.vectors.txt -cbow 0 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 0
+	cp $(TMP)/4300W.skip.vectors.txt $(CLUE_SKIP_WORD_VECTOR)
+	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.raw.txt -output $(TMP)/4300W.cbow.vectors.txt -cbow 1 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 0
+	cp $(TMP)/4300W.cbow.vectors.txt $(CLUE_CBOW_WORD_VECTOR)
+
 # construct sentence & word vectors for clueweb
 c_sent_word2vec:
 	shuf $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.labeled.txt
 	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.labeled.txt -output $(TMP)/4300W.sent.vectors.txt -cbow 0 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
+
 
 # extract desired vectors to files
 c_sent_extract:
