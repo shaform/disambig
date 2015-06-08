@@ -20,13 +20,18 @@ def process_commands():
     return parser.parse_args()
 
 
-def print_total_recall_cand(total, recall, cand, label=''):
-    print('total/recall/cand {}: {}/{}/{}\n'.format(
+def print_total_correct_cand(total, correct, cand, label=''):
+    print('total/correct/cand {}: {}/{}/{}'.format(
         label,
         total,
-        recall,
+        correct,
         cand
     ))
+    recall = correct / total
+    prec = correct / cand
+
+    print('recall: {:.4f}, prec: {:.4f}'.format(recall, prec))
+    print()
 
 
 def count_by_num(counts, bound=5):
@@ -45,101 +50,123 @@ def print_distribution(d):
     print()
 
 
+class Stats(object):
+
+    def __init__(self, truth):
+        self.truth = truth
+        self.words = truth.all_words()
+        self.visited = set()
+
+        self.total_component_count = len(self.words)
+        self.total_connective_count = 0
+        for s in truth.linkage.values():
+            self.total_connective_count += len(s)
+
+        self.cand_component_count = 0
+        self.correct_component_count = 0
+        self.cand_connective_count = 0
+        self.correct_connective_count = 0
+
+        self.disambig_count = defaultdict(int)
+        self.cand_disambig_count = defaultdict(int)
+
+    def collect_connective(self, l, indices_lst):
+        self.cand_connective_count += 1
+        if indices_lst in self.truth[l]:
+            self.correct_connective_count += 1
+
+        for indices in indices_lst:
+            comp = (l, indices)
+            self.cand_disambig_count[comp] += 1
+            if comp not in self.visited:
+                self.visited.add(comp)
+                self.cand_component_count += 1
+                if comp in self.words:
+                    self.correct_component_count += 1
+
+        if all((l, indices) in self.words for indices in indices_lst):
+            for indices in indices_lst:
+                self.disambig_count[(l, indices)] += 1
+
+    def collect_component(self, l, indices):
+        self.cand_component_count += 1
+        if (l, indices) in self.words:
+            self.correct_component_count += 1
+
+    def print_connective(self):
+        print_total_correct_cand(
+            self.total_connective_count,
+            self.correct_connective_count,
+            self.cand_connective_count,
+            'connectives'
+        )
+
+    def print_component(self):
+        print_total_correct_cand(
+            self.total_component_count,
+            self.correct_component_count,
+            self.cand_component_count,
+            'components'
+        )
+
+    def print_ambiguity(self):
+        print('disambig truth')
+        print_distribution(count_by_num(self.disambig_count))
+
+        # linking ambiguity among all candidates
+        print('disambig cand')
+        print_distribution(count_by_num(self.cand_disambig_count))
+
+
 def stat_all_detect(detector, corpus_file, truth):
 
     counter = evaluate.ProgressCounter()
-    total_connective_count = 0
-    recall_conective_count = 0
-    cand_connective_count = 0
-    recall_component_count = 0
-    cand_component_count = 0
-    t_recall_component_count = 0
-    t_cand_component_count = 0
+    mstats = Stats(truth)
+    cstats = Stats(truth)
+    tstats = Stats(truth)
 
     length_count = defaultdict(int)
-    disambig_count = defaultdict(int)
-    cand_disambig_count = defaultdict(int)
-
-    words = truth.all_words()
-
-    # count stats
+    for s in truth.linkage.values():
+        for x in s:
+            length_count[len(x)] += 1
 
     for l, tokens in corpus_file.corpus.items():
         counter.step()
 
-        components = set()
-        connectives = set()
-        for _, poss in detector.detect_all(tokens):
-            if poss in truth[l]:
-                recall_conective_count += 1
-            connectives.add(poss)
-            for pos in poss:
-                components.add(pos)
-                cand_disambig_count[(l, pos)] += 1
+        # count string matching stats
+        for _, indices_lst in detector.detect_all(tokens):
+            mstats.collect_connective(l, indices_lst)
 
-            if all((l, pos) in words for pos in poss):
-                for pos in poss:
-                    disambig_count[(l, pos)] += 1
-
-            cand_connective_count += 1
-
-        cand_component_count += len(components)
-        for x in components:
-            if (l, x) in words:
-                recall_component_count += 1
-
-        total_connective_count += len(truth[l])
-        for c in truth[l]:
-            length_count[len(c)] += 1
-            if c not in connectives:
-                for x in c:
-                    disambig_count[(l, x)] = 1
-
-        components = set()
         # collect stats by purely components
-        for _, pos in detector.detect_all_components(tokens):
-            components.add(pos)
+        for _, indices in detector.detect_all_components(tokens):
+            cstats.collect_component(l, indices)
 
-        t_cand_component_count += len(components)
-        for x in components:
-            if (l, x) in words:
-                t_recall_component_count += 1
+        # collect stats by segmentation
+        for _, indices_lst in detector.detect_by_tokens(tokens,
+                                                        continuous=True,
+                                                        cross=False):
+            tstats.collect_connective(l, indices_lst)
 
     # print stats
 
     print()
 
-    print_total_recall_cand(
-        total_connective_count,
-        recall_conective_count,
-        cand_connective_count,
-        'connectives'
-    )
-
-    print_total_recall_cand(
-        len(truth.all_words()),
-        recall_component_count,
-        cand_component_count,
-        'components'
-    )
-
-    print_total_recall_cand(
-        len(truth.all_words()),
-        t_recall_component_count,
-        t_cand_component_count,
-        'token components'
-    )
-
+    print('## corpus ##')
     print('length')
     print_distribution(length_count)
 
-    # linking ambiguity among truth
-    print('disambig truth')
-    print_distribution(count_by_num(disambig_count))
+    print('## string matching by components ##')
+    cstats.print_component()
 
-    # linking ambiguity among all candidates
-    print('disambig cand')
-    print_distribution(count_by_num(cand_disambig_count))
+    print('## string matching by connectives ##')
+    mstats.print_connective()
+    mstats.print_component()
+    mstats.print_ambiguity()
+
+    print('## segmentation##')
+    tstats.print_connective()
+    tstats.print_component()
+    tstats.print_ambiguity()
 
 
 def main():
