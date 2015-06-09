@@ -120,10 +120,10 @@ def POS_feature_set(feature_vector, indices, pos_tokens):
 
 
 def PN_feature_set(feature_vector, parsed, l_index, r_index, *,
-                   full=False, cnnct=None):
+                   full=False, cnnct=None, exact=True):
     # self
     me = corpus.ParseHelper.self_category(
-        parsed, [l_index, r_index])
+        parsed, [l_index, r_index], exact=exact)
     sf = corpus.ParseHelper.label(me)
 
     # parent

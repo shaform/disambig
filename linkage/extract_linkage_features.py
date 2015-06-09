@@ -181,8 +181,13 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['right_bundary'] = rbound
 
             # P & N
-            features.PN_feature_set(
-                feature_vector, parsed, l_index, r_index)
+            for token_indices in t_indices:
+                l_l_index = token_indices[0]
+                l_r_index = token_indices[-1]
+                features.PN_feature_set(
+                    feature_vector, parsed, l_l_index, l_r_index)
+            # features.PN_feature_set(
+            #     feature_vector, parsed, l_index, r_index)
 
             X.append(feature_vector)
             if indices in truth[label]:
