@@ -6,6 +6,9 @@ LIBSVM_SCALE = $(DISAMBIG_TOOL)/libsvm/train-scale
 CRFSUITE = $(DISAMBIG_TOOL)/crfsuite/frontend/crfsuite
 TMP = /tmp
 
+default:
+	echo NO DEFAULT
+
 ## -- data preprocessing -- ##
 
 CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
@@ -33,6 +36,10 @@ GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
 GGLOVE_NP_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.no_pos.txt
 
 NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
+
+# extract clueweb
+d_clueweb:
+	python3 $(DISAMBIG_PRG)/utility/clueweb/extract.py --input $(CLUEWEB_POS_CORPUS) --tool $(CLUEWEB_EXTRACTOR) --tmp $(TMP)/clueweb.tmp --output $(TMP)/clueweb.complete
 
 # prepare files to create glove output
 d_glove_prep:
