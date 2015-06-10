@@ -19,10 +19,14 @@ def process_commands():
 def main():
     args = process_commands()
     with open(args.output, 'w') as out:
+        count = 0
         for root, dirs, files in os.walk(args.input):
+            count += 1
+            print('==== process directory {} ===='.format(count))
             files = list(files)
             for n, fname in enumerate(files):
-                print('process file {}: {}/{}'.format(root, n, len(files)))
+                print('==== process file {}: {}/{} ===='.format(
+                    root, n, len(files)))
                 if fname.endswith('pos.ser.gz'):
                     source = os.path.join(root, fname)
                     tmp = args.tmp
