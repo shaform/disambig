@@ -5,6 +5,7 @@ LIBSVM_TRAIN = $(DISAMBIG_TOOL)/liblinear/train
 LIBSVM_SCALE = $(DISAMBIG_TOOL)/libsvm/train-scale
 CRFSUITE = $(DISAMBIG_TOOL)/crfsuite/frontend/crfsuite
 TMP = /tmp
+VTMP = /var/tmp/
 
 default:
 	echo NO DEFAULT
@@ -39,7 +40,7 @@ NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
 
 # extract clueweb
 d_clueweb:
-	python3 $(DISAMBIG_PRG)/utility/clueweb/extract.py --input $(CLUEWEB_POS_CORPUS) --tool $(CLUEWEB_EXTRACTOR) --tmp $(TMP)/clueweb.tmp --output $(TMP)/clueweb.complete
+	python3 $(DISAMBIG_PRG)/utility/clueweb/extract.py --input $(CLUEWEB_POS_CORPUS) --tool $(CLUEWEB_EXTRACTOR) --tmp $(TMP)/clueweb.tmp --output $(VTMP)/clueweb.complete
 
 # prepare files to create glove output
 d_glove_prep:
