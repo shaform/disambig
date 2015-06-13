@@ -23,11 +23,53 @@ def process_commands():
     parser.add_argument('--tmp', required=True)
     parser.add_argument('--input', required=True)
     parser.add_argument('--output', required=True)
+    parser.add_argument('--lang',
+                        choices=('chinese', 'english'), default='chinese')
+    parser.add_argument('--threads', type=int, default=6)
 
     return parser.parse_args()
 
 
-def process_directory(src, files, dst, tmp, tool):
+def unzip_chinese(src, dst, tool):
+    cmdline = 'java edu.ntu.nlp.discourseRelation.utils.DR_ConvertSerDR2TextFile {} {}'
+    cmdline = cmdline.format(src, dst)
+    Popen(cmdline, shell=True, cwd=tool).wait()
+
+
+def unzip_english(src, dst, tool):
+    cmdline = 'java edu.ntu.nlp.discourseRelation.utils.ENG_ConvertSerDR2TextFile {} {}'
+    cmdline = cmdline.format(src, dst)
+    Popen(cmdline, shell=True, cwd=tool).wait()
+
+
+def convert_chinese(src, dst):
+    cmdline = ['grep', r'^[0-9]\+:', src]
+    try:
+        text = subprocess.check_output(cmdline,
+                                       universal_newlines=True)
+
+        with open(dst, 'w') as out:
+            for l in text.split('\n'):
+                i = l.find(':')
+                if i == -1:
+                    continue
+                l = l[i + 1:].strip()
+
+                if l.count(' ') + 1 != l.count('/'):
+                    continue
+                out.write(l + '\n')
+
+    except subprocess.CalledProcessError:
+        return
+
+
+def convert_english(src, dst, tool):
+    cmdline = r'''tr -d '\r' < {} | grep -v "^$" > {}'''
+    cmdline = cmdline.format(src, dst)
+    Popen(cmdline, shell=True, cwd=tool).wait()
+
+
+def process_directory(src, files, dst, tmp, tool, lang):
     print('==== process directory {} ===='.format(src))
 
     count = 0
@@ -46,31 +88,17 @@ def process_directory(src, files, dst, tmp, tool):
             basename, n, total))
 
         gzfile = os.path.join(src, fname)
-        cmdline = 'java edu.ntu.nlp.discourseRelation.utils.DR_ConvertSerDR2TextFile {} {}'
-        cmdline = cmdline.format(gzfile, tmp)
-        Popen(cmdline, shell=True, cwd=tool).wait()
-
+        if lang == 'chinese':
+            unzip_chinese(gzfile, tmp, tool)
+        elif lang == 'english':
+            unzip_english(gzfile, tmp, tool)
         print('==== unzipped :{}/{} ===='.format(src, fname))
+
         print('==== start converting ====')
-
-        cmdline = ['grep', r'^[0-9]\+:', tmp]
-        try:
-            text = subprocess.check_output(cmdline,
-                                           universal_newlines=True)
-
-            with open(txtfile, 'w') as out:
-                for l in text.split('\n'):
-                    i = l.find(':')
-                    if i == -1:
-                        continue
-                    l = l[i + 1:].strip()
-
-                    if l.count(' ') + 1 != l.count('/'):
-                        continue
-                    out.write(l + '\n')
-
-        except subprocess.CalledProcessError:
-            continue
+        if lang == 'chinese':
+            convert_chinese(tmp, txtfile)
+        elif lang == 'english':
+            convert_english(tmp, txtfile, tool)
 
 
 def main():
@@ -84,13 +112,13 @@ def main():
 
         dst = os.path.join(args.output, os.path.relpath(root, args.input))
         mkdir_p(dst)
-        tmp = '{}.{}'.format(args.tmp, len(processes))
+        tmp = '{}.{}.{}'.format(args.tmp, args.lang, len(processes))
 
         p = mp.Process(target=process_directory,
-                       args=(root, files, dst, tmp, args.tool))
+                       args=(root, files, dst, tmp, args.tool, args.lang))
         processes.append(p)
 
-    k = 6
+    k = args.threads
     for i in range(0, len(processes), k):
         for p in processes[i:i + k]:
             p.start()
