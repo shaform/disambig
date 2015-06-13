@@ -42,8 +42,16 @@ NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
 d_clueweb:
 	python3 $(DISAMBIG_PRG)/utility/clueweb/extract.py --input $(CLUEWEB_POS_CORPUS) --tool $(CLUEWEB_EXTRACTOR) --tmp $(TMP)/clueweb.tmp --output $(VTMP)/clueweb.complete
 
+d_clueweb_post:
+	find $(VTMP)/clueweb.complete -name '*.txt' -exec cat {} + >> $(VTMP)/clueweb.cht.full.txt
+	sort -uR $(VTMP)/clueweb.cht.full.txt > $(VTMP)/clueweb.cht.full.unique.txt
+
 d_clueweb_eng:
 	python3 $(DISAMBIG_PRG)/utility/clueweb/extract.py --input $(CLUEWEB_ENG_CORPUS) --tool $(CLUEWEB_EXTRACTOR) --tmp $(TMP)/clueweb.tmp --output $(VTMP)/clueweb_eng.complete --lang english --threads 8
+
+d_clueweb_eng_post:
+	find $(VTMP)/clueweb_eng.complete -name '*.txt' -exec cat {} + >> $(VTMP)/clueweb.eng.full.txt
+	sort -uR $(VTMP)/clueweb.eng.full.txt > $(VTMP)/clueweb.eng.full.unique.txt
 
 # prepare files to create glove output
 d_glove_prep:
