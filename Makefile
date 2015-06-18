@@ -33,7 +33,8 @@ LCORPUS_DEP_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.dep.txt
 GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
 GCCS_FILE = $(TMP)/ccs.txt
-GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
+#GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
+GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/sm.vectors.txt
 GGLOVE_NP_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.no_pos.txt
 
 NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
@@ -152,6 +153,7 @@ LCNNCT_FILE = $(DISAMBIG_DATA)/connectives-simple/cdt_cdtb.txt
 LCORPUS_POS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.pos.txt
 LCORPUS_PARSE_FILE = $(DISAMBIG_DATA)/parsed/cdtb.parsed.txt
 LVECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_vectors.txt
+# LVECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_sm_vectors.txt
 LW2V_VECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_w2v_vectors.txt
 LWORD_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_features.txt
 LWORD_PROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_probs.txt
@@ -190,7 +192,7 @@ l_experiment:
 
 # 5.5 run the perfect experiments
 l_perfect_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --perfect --check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --linkage_features $(LLINKAGE_PFEATURE_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --perfect --check_accuracy
 
 # 6. run sense experiment
 l_sense_experiment:
