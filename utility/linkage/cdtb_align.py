@@ -39,6 +39,33 @@ _TP = {
     '评价关系': 3,
 }
 
+_TP2 = {
+    # causality
+    '因果关系': 0,
+    '推断关系': 1,
+    '假设关系': 2,
+    '目的关系': 3,
+    '条件关系': 4,
+    '背景关系': 5,
+
+    # coordination
+    '并列关系': 6,
+    '顺承关系': 7,
+    '递进关系': 8,
+    '选择关系': 9,
+    '对比关系': 10,
+
+    # transition
+    '转折关系': 11,
+    '让步关系': 12,
+
+    # explanation
+    '解说关系': 13,
+    '总分关系': 14,
+    '例证关系': 15,
+    '评价关系': 16,
+}
+
 
 def span_to_offset(span, tokens):
     start = 0
@@ -146,15 +173,17 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 end = offset_to_index(detected_indices[-1].split(',', 1)[-1])
                 new_offsets = '-'.join(detected_indices)
                 rtype = _TP[tp]
+                rtype2 = _TP2[tp]
                 stype = _SP[sp]
                 connective = '-'.join(conncts)
                 connective_range[(label, rindices)] = (
                     start, end, detected_indices, connective, rtype, stype)
-                of.write('{}\t{}\t{}\t{}\t{}\n'.format(label,
-                                                       connective,
-                                                       new_offsets,
-                                                       rtype,
-                                                       stype))
+                of.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(label,
+                                                           connective,
+                                                           new_offsets,
+                                                           rtype,
+                                                           rtype2,
+                                                           stype))
 
     print('connective components:')
     print_distribution(stats)

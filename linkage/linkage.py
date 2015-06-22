@@ -74,30 +74,34 @@ class LinkageFile(object):
         self.linkage = defaultdict(set)
         self.linkage_with_types = set()
         self.linkage_type = defaultdict(dict)
+        self.linkage_type2 = defaultdict(dict)
         self.structure_type = defaultdict(dict)
         self.type_stats = defaultdict(set)
+        self.type_stats2 = defaultdict(set)
         self.type_counts = defaultdict(int)
 
         with open(linkage_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
 
-        for plabel, words, indices, tp, sp in items:
+        for plabel, words, indices, tp, tp2, sp in items:
             cnnct = tuple(indices.split('-'))
             self.linkage[plabel].add(cnnct)
             self.linkage_type[plabel][cnnct] = int(tp)
+            self.linkage_type2[plabel][cnnct] = int(tp2)
             self.structure_type[plabel][cnnct] = int(sp)
             self.type_stats[words].add(tp)
+            self.type_stats2[words].add(tp2)
             self.type_counts[words] += 1
 
-        for plabel, words, indices, _, _ in items:
+        for plabel, words, indices, _, _, _ in items:
             cnnct = tuple(indices.split('-'))
             if len(self.type_stats[words]) > 1:
                 self.linkage_with_types.add((plabel, cnnct))
 
-    def print_type_stats(self):
+    def internal_print_type_stats(self, type_stats):
         d = defaultdict(int)
         dinst = defaultdict(int)
-        for w, s in self.type_stats.items():
+        for w, s in type_stats.items():
             d[len(s)] += 1
             dinst[len(s)] += self.type_counts[w]
 
@@ -108,6 +112,13 @@ class LinkageFile(object):
         print('Type instances stats')
         for v, c in sorted(dinst.items()):
             print('{}: {}'.format(v, c))
+
+    def print_type_stats(self):
+        print('\n1-level')
+        self.internal_print_type_stats(self.type_stats)
+
+        print('\n2-level')
+        self.internal_print_type_stats(self.type_stats2)
 
     def all_words(self):
         """Get identities of all single words appeared."""
