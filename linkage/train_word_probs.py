@@ -6,6 +6,7 @@ import features
 import evaluate
 
 from collections import defaultdict
+from multiprocessing import Pool
 
 from sklearn.linear_model import LogisticRegression
 
@@ -26,32 +27,59 @@ def process_commands():
     return parser.parse_args()
 
 
-def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
+def predict(args):
+    i, X, Y, Xt = args
     lr = LogisticRegression()
+    lr.fit(X, Y)
+    Yt = lr.predict(Xt)
+    print('completed training word probability for fold', i, '...')
+    return Yt
+
+
+def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
     word_probs = {}
 
     if check_accuracy and ambig_path is not None:
         word_ambig = evaluate.WordAmbig(ambig_path)
 
     stats = evaluate.FoldStats()
-    for i in fhelper.folds():
-        print('\ntraining word probability for fold', i, '...')
 
+    # extract training data
+    num_of_folds = len(fhelper.folds())
+    print('\nextract data for {} folds'.format(num_of_folds))
+    input_data = []
+    helper_data = []
+    for i in fhelper.folds():
         _, X, Y = fhelper.features(fhelper.train_set(i), feature_tbl)
 
         labels, Xt, Yt_truth = fhelper.features(
             fhelper.test_set(i), feature_tbl)
 
-        lr.fit(X, Y)
-        Yt = lr.predict(Xt)
+        input_data.append((i, X, Y, Xt))
+        helper_data.append({
+            'i': i,
+            'labels': labels,
+            'Yt_truth': Yt_truth
+        })
 
-        truth_count_for_fold = None
+    # spawn processes to train
+    print('\nstart training')
+    with Pool(num_of_folds) as p:
+        results = p.map(predict, input_data)
+
+    # join all data
+    for helper, Yt in zip(helper_data, results):
+        i = helper['i']
+        labels = helper['labels']
+        Yt_truth = helper['Yt_truth']
+
+        truth_count = None
         if word_ambig is not None:
-            truth_count_for_fold = word_ambig.count_fold(fhelper.test_set(i))
+            truth_count = word_ambig.count_fold(fhelper.test_set(i))
 
         if check_accuracy:
             stats.compute_fold(labels, Yt, Yt_truth,
-                               truth_count=truth_count_for_fold)
+                               truth_count=truth_count)
 
         for label, y_truth, y in zip(labels, Yt_truth, Yt):
             word_probs[label] = (y_truth, y)

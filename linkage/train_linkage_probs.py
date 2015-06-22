@@ -7,6 +7,7 @@ import features
 import linkage
 
 from collections import defaultdict
+from multiprocessing import Pool
 
 from sklearn.svm import SVR
 
@@ -27,25 +28,51 @@ def process_commands():
     return parser.parse_args()
 
 
+def predict(args):
+    i, X, Y, Xt = args
+    lr = SVR(C=1.0, epsilon=0.2)
+    lr.fit(X, Y)
+    Yt = lr.predict(Xt)
+    print('completed training linkage probability for fold', i, '...')
+    return Yt
+
+
 def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
                         check_accuracy=False):
     print('training linkage probability')
 
-    lr = SVR(C=1.0, epsilon=0.2)
     linkage_probs = {}
 
     stats = evaluate.FoldStats(threshold=0.7)
-    for i in fhelper.folds():
-        print('\ntraining for fold', i, '...')
 
+    # extract training data
+    num_of_folds = len(fhelper.folds())
+    print('\nextract data for {} folds'.format(num_of_folds))
+    input_data = []
+    helper_data = []
+    for i in fhelper.folds():
         _, X, Y = fhelper.features(
             fhelper.train_set(i), feature_tbl, extend=4)
 
         labels, Xt, Yt_truth = fhelper.features(
             fhelper.test_set(i), feature_tbl)
 
-        lr.fit(X, Y)
-        Yt = lr.predict(Xt)
+        input_data.append((i, X, Y, Xt))
+        helper_data.append({
+            'i': i,
+            'labels': labels,
+            'Yt_truth': Yt_truth
+        })
+
+    # spawn processes to train
+    print('\nstart training')
+    with Pool(num_of_folds) as p:
+        results = p.map(predict, input_data)
+
+    # join all data
+    for helper, Yt in zip(helper_data, results):
+        labels = helper['labels']
+        Yt_truth = helper['Yt_truth']
 
         if check_accuracy:
             stats.compute_fold(labels, Yt, Yt_truth)
