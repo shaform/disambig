@@ -145,7 +145,7 @@ def PN_feature_set(feature_vector, parsed, l_index, r_index, *,
         'right_sb_{}'.format(rsb),
     ]
 
-    if full:
+    if cnnct:
         components.append('cnnct_{}'.format(cnnct))
 
     for x in components:
