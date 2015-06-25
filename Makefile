@@ -165,6 +165,7 @@ LLINKAGE_PFEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_features.
 LFOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
 L10FOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
 LLINKING_FILE = $(DISAMBIG_DATA)/connective/ntu_connective_linking.txt
+LCOUNT_FILE = $(DISAMBIG_DATA)/linkage/word_count.txt
 
 # 1. extract features for each word
 l_extract_word_features:
@@ -172,7 +173,7 @@ l_extract_word_features:
 
 # 2. train word probabilities
 l_train_word_probs:
-	python3 $(DISAMBIG_PRG)/linkage/train_word_probs.py --word_ambig $(LWORD_AMBIG_FILE) --word_features $(LWORD_FEATURE_FILE) --folds $(LFOLDS_FILE) --output $(LWORD_PROB_FILE) --check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/train_word_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --word_features $(LWORD_FEATURE_FILE) --folds $(LFOLDS_FILE) --output $(LWORD_PROB_FILE) --check_accuracy
 
 # 3. extract features for each linkage
 l_extract_linkage_features:
@@ -207,7 +208,7 @@ l_perfect_arg_experiment:
 	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --linking $(LLINKING_FILE) --log $(TMP)/error_analysis.txt --hierarchy_adjust #--keep_boundary
 
 l_statistics:
-	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/statistics.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE)
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/statistics.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --linkage $(LINKAGE_FILE) --output_count $(LCOUNT_FILE)
 
 ## -- test experiments -- ##
 

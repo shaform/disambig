@@ -17,6 +17,8 @@ def process_commands():
                         help='word features file')
     parser.add_argument('--word_ambig', required=True,
                         help='word ambiguity file')
+    parser.add_argument('--word_count', required=True,
+                        help='word count file')
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
     parser.add_argument('--output', required=True,
@@ -36,11 +38,17 @@ def predict(args):
     return Yt
 
 
-def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
+def train_word_probs(fhelper, feature_tbl, ambig_path, count_path,
+                     check_accuracy=False):
     word_probs = {}
 
+    word_ambig = None
     if check_accuracy and ambig_path is not None:
         word_ambig = evaluate.WordAmbig(ambig_path)
+
+    word_count = None
+    if check_accuracy and count_path is not None:
+        word_count = evaluate.WordCount(count_path)
 
     stats = evaluate.FoldStats()
 
@@ -77,9 +85,14 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, check_accuracy=False):
         if word_ambig is not None:
             truth_count = word_ambig.count_fold(fhelper.test_set(i))
 
+        total_count = None
+        if word_count is not None:
+            total_count = word_count.count_fold(fhelper.test_set(i))
+
         if check_accuracy:
             stats.compute_fold(labels, Yt, Yt_truth,
-                               truth_count=truth_count)
+                               truth_count=truth_count,
+                               total_count=total_count)
 
         for label, y_truth, y in zip(labels, Yt_truth, Yt):
             word_probs[label] = (y_truth, y)
@@ -117,6 +130,7 @@ def main():
 
     word_probs = train_word_probs(
         fhelper, feature_tbl, ambig_path=args.word_ambig,
+        count_path=args.word_count,
         check_accuracy=args.check_accuracy)
 
     output_file(args.output, word_probs)

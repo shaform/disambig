@@ -17,7 +17,7 @@ def print_counts(d):
         print(l, v)
 
 
-def print_scores(recall, prec, *, fscore=None, label=None):
+def print_scores(recall, prec, *, accuracy=None, fscore=None, label=None):
     if label is not None:
         print(label + '\t', end='')
 
@@ -25,7 +25,12 @@ def print_scores(recall, prec, *, fscore=None, label=None):
         fscore = f1(recall, prec)
 
     print('prec: {:.04}\trecall: {:.04}\tf1: {:.04}'.format(
-          prec, recall, fscore))
+          prec, recall, fscore), end='')
+
+    if accuracy is not None:
+        print('\taccuracy: {:.04}'.format(accuracy))
+    else:
+        print()
 
 _HEADERS = [
     [
@@ -162,6 +167,22 @@ def print_stats(tp, tn, fp, fn, label=None):
     print_scores(tp / (tp + fn), tp / (tp + fp))
 
 
+class WordCount(object):
+
+    def __init__(self, path):
+        self.counts = defaultdict(int)
+        with open(path) as f:
+            for l in f:
+                label, v = l.split('\t')
+                self.counts[label] = int(v)
+
+    def count_fold(self, labels):
+        total = 0
+        for l in labels:
+            total += self.counts[l]
+        return total
+
+
 class WordAmbig(object):
 
     def __init__(self, path):
@@ -201,7 +222,7 @@ class FoldStats(object):
         self.threshold = threshold
         self.show_fold = show_fold
 
-    def compute_fold(self, labels, Yp, Y, truth_count=None):
+    def compute_fold(self, labels, Yp, Y, truth_count=None, total_count=None):
         f_stats = defaultdict(int)
 
         tp = tn = fp = fn = 0
@@ -222,6 +243,12 @@ class FoldStats(object):
                     fn += 1
                     self.fn_labels.add(l)
 
+        if truth_count is not None:
+            fn = truth_count - tp
+
+        if total_count is not None:
+            tn = total_count - (tp + fp + fn)
+
         if self.show_fold:
             print_stats(tp, tn, fp, fn)
 
@@ -230,13 +257,12 @@ class FoldStats(object):
         self.stats['fp'] += fp
         self.stats['fn'] += fn
 
-        if truth_count is not None:
-            fn = truth_count - tp
-
         recall, prec = tp / (tp + fn), tp / (tp + fp)
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
         self.cv_stats['prec'].append(prec)
         self.cv_stats['recall'].append(recall)
         self.cv_stats['f1'].append(f1(recall, prec))
+        self.cv_stats['accuracy'].append(accuracy)
 
     def print_total(self, truth_count=None):
 
@@ -262,7 +288,8 @@ class FoldStats(object):
         prec = sum(self.cv_stats['prec']) / l
         recall = sum(self.cv_stats['recall']) / l
         fscore = sum(self.cv_stats['f1']) / l
-        print_scores(recall, prec, fscore=fscore)
+        accuracy = sum(self.cv_stats['accuracy']) / l
+        print_scores(recall, prec, fscore=fscore, accuracy=accuracy)
 
     def print_distribution(self, ambig, function=lambda x: x):
         '''Display correct word distribution by ambiguity'''

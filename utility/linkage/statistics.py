@@ -16,12 +16,14 @@ def process_commands():
                         help='linkage ground truth file')
     parser.add_argument('--corpus', required=True,
                         help='raw corpus file')
+    parser.add_argument('--output_count', required=True,
+                        help='output word count file')
 
     return parser.parse_args()
 
 
 def print_total_correct_cand(total, correct, cand, label=''):
-    print('total/correct/cand {}: {}/{}/{}'.format(
+    print('total real/correct/cand {}: {}/{}/{}'.format(
         label,
         total,
         correct,
@@ -62,6 +64,7 @@ class Stats(object):
         for s in truth.linkage.values():
             self.total_connective_count += len(s)
 
+        self.cand_component_count_by_label = defaultdict(int)
         self.cand_component_count = 0
         self.correct_component_count = 0
         self.cand_connective_count = 0
@@ -81,6 +84,7 @@ class Stats(object):
             if comp not in self.visited:
                 self.visited.add(comp)
                 self.cand_component_count += 1
+                self.cand_component_count_by_label[l] += 1
                 if comp in self.words:
                     self.correct_component_count += 1
 
@@ -118,7 +122,7 @@ class Stats(object):
         print_distribution(count_by_num(self.cand_disambig_count))
 
 
-def stat_all_detect(detector, corpus_file, truth):
+def stat_all_detect(detector, corpus_file, truth, count_path):
 
     counter = evaluate.ProgressCounter()
     mstats = Stats(truth)
@@ -163,6 +167,14 @@ def stat_all_detect(detector, corpus_file, truth):
     mstats.print_component()
     mstats.print_ambiguity()
 
+    with open(count_path, 'w') as f:
+        print('\noutput file to {}'.format(count_path))
+        total = 0
+        for l, v in mstats.cand_component_count_by_label.items():
+            total += v
+            f.write('{}\t{}\n'.format(l, v))
+        print('totally {} word counts written'.format(total))
+
     print('## segmentation##')
     tstats.print_connective()
     tstats.print_component()
@@ -176,7 +188,7 @@ def main():
     corpus_file = corpus.CorpusFile(args.corpus)
     truth = linkage.LinkageFile(args.linkage)
 
-    stat_all_detect(detector, corpus_file, truth)
+    stat_all_detect(detector, corpus_file, truth, args.output_count)
 
 if __name__ == '__main__':
     main()
