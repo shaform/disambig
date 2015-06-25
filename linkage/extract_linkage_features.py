@@ -56,7 +56,7 @@ FILTER_SET = {
           'num_left_boundary', 'num_right_boundary',
           'num_dist', 'num_dist_to_boundary',
           'num_geo_mean',
-          'num_of_words_'),
+          'connective_length_'),
 }
 
 
@@ -166,7 +166,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['num_of_overlapped'] = len(overlapped)
             feature_vector['num_of_crossed'] = len(crossed)
 
-            feature_vector['num_of_words_{}'.format(len(indices))] = 1
+            feature_vector['connective_length_{}'.format(len(indices))] = 1
 
             # dist features
             feature_vector['num_dist'] = r_index - l_index
