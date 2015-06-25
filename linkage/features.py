@@ -171,11 +171,49 @@ def load_features_table(path, tlabel_transform=lambda x: x):
     return feature_tbl
 
 
-def transform_features(X, Xext=None):
+def vectorize(X, scale=False):
     X = DictVectorizer().fit_transform(X).toarray()
-    X = preprocessing.scale(X)
+    if scale:
+        X = preprocessing.scale(X)
+
+    return X
+
+
+def transform_features(X, Xext=None):
+
+    # check if there are numerical features
+    Xnum = []
+    has_num = has_no_num = False
+    for x in X:
+        xnum = {}
+        Xnum.append(xnum)
+
+        for key, v in list(x.items()):
+            if key.startswith('num_'):
+                xnum[key] = v
+                del x[key]
+                has_num = True
+            else:
+                has_no_num = True
+
+    assert(has_num or has_no_num)
+
+    # merge vectors
+    if has_no_num:
+        X = vectorize(X)
+
+    if has_num:
+        Xnum = vectorize(Xnum, True)
+
+        if has_no_num:
+            X = np.concatenate((X, Xnum), axis=1)
+        else:
+            X = Xnum
+
+    # merge additional vectors
     if Xext is not None:
         X = np.concatenate((X, Xext), axis=1)
+
     return X
 
 

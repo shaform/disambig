@@ -46,7 +46,7 @@ def process_commands():
 FILTER_SET = {
     PN: ('self_', 'parent_', 'left_sb_', 'right_sb_'),
     POS: ('in_pos_', 'left_pos_', 'right_pos_'),
-    NUM: ('num_of_choices', 'left_boundary', 'right_boundary'),
+    NUM: ('num_of_choices', 'num_left_boundary', 'num_right_boundary'),
 }
 
 for k, v in FILTER_SET.items():
@@ -102,8 +102,8 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                     lbound, rbound = features.lr_boundary(
                         l_index, r_index, tokens)
 
-                    feature_vector['left_boundary'] = lbound
-                    feature_vector['right_boundary'] = rbound
+                    feature_vector['num_left_boundary'] = lbound
+                    feature_vector['num_right_boundary'] = rbound
 
                     # GLOVE
                     token_vectors = []

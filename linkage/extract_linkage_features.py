@@ -53,9 +53,9 @@ FILTER_SET = {
     PN: ('self_', 'parent_', 'left_sb_', 'right_sb_'),
     POS: ('in_pos_', 'left_pos_', 'right_pos_'),
     NUM: ('num_of_overlapped', 'num_of_crossed',
-          'left_boundary', 'right_boundary',
-          'dist', 'dist_to_boundary',
-          'geo_mean',
+          'num_left_boundary', 'num_right_boundary',
+          'num_dist', 'num_dist_to_boundary',
+          'num_geo_mean',
           'num_of_words_'),
 }
 
@@ -113,7 +113,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector = defaultdict(int)
 
             gm = features.geometric_dists_mean(t_indices)
-            feature_vector['geo_mean'] = gm
+            feature_vector['num_geo_mean'] = gm
 
             token_vectors = []
             left_vectors = []
@@ -169,16 +169,16 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['num_of_words_{}'.format(len(indices))] = 1
 
             # dist features
-            feature_vector['dist'] = r_index - l_index
+            feature_vector['num_dist'] = r_index - l_index
 
             # boundary features
-            feature_vector['dist_to_boundary'] = dist_to_boundary
+            feature_vector['num_dist_to_boundary'] = dist_to_boundary
 
             lbound, rbound = features.lr_boundary(
                 l_index, r_index, tokens)
 
-            feature_vector['left_bundary'] = lbound
-            feature_vector['right_bundary'] = rbound
+            feature_vector['num_left_boundary'] = lbound
+            feature_vector['num_right_boundary'] = rbound
 
             # P & N
             for token_indices in t_indices:
