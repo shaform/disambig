@@ -7,6 +7,7 @@ import features
 import linkage
 
 from collections import defaultdict
+from multiprocessing import Pool
 
 from sklearn.linear_model import LogisticRegression
 
@@ -132,7 +133,7 @@ def detect_wrong(indices, visited, crossed):
     return False
 
 
-def train_sense_lr(lr, fhelper, data_set, feature_tbl, truth):
+def collect_sense_data(fhelper, data_set, feature_tbl, truth):
     X = []
     Y = []
     for (label, indices), x, y in zip(*fhelper.features(
@@ -140,7 +141,15 @@ def train_sense_lr(lr, fhelper, data_set, feature_tbl, truth):
         if indices in truth[label]:
             X.append(x)
             Y.append(truth[label][indices])
+    return X, Y
+
+
+def train_sense_lr(args):
+    X, Y = args
+    lr = LogisticRegression()
     lr.fit(X, Y)
+    print('.', end='', flush=True)
+    return lr
 
 NON_DIS = 4
 NON_DIS_2 = 17
@@ -201,6 +210,35 @@ def get_feature_set(feature_tbl):
     return d
 
 
+def train_sense_predictors(num_of_folds, fhelper, feature_tbl, truth):
+    print('training predictors...', end='', flush=True)
+
+    predictors = []
+    predictors2 = []
+    for i in range(num_of_folds):
+
+        X, Y = collect_sense_data(fhelper,
+                                  fhelper.train_set(i),
+                                  feature_tbl,
+                                  truth.linkage_type)
+        predictors.append((X, Y))
+
+        X2, Y2 = collect_sense_data(fhelper,
+                                    fhelper.train_set(i),
+                                    feature_tbl,
+                                    truth.linkage_type2)
+        predictors2.append((X2, Y2))
+
+    with Pool(num_of_folds * 2) as p:
+        predictors = p.map_async(train_sense_lr, predictors)
+        predictors2 = p.map_async(train_sense_lr, predictors2)
+        predictors = predictors.get()
+        predictors2 = predictors2.get()
+
+    print('done')
+    return predictors, predictors2
+
+
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, lcdict, linkage_probs, word_ambig,
                      cut, *, words=None, perfect=False, arg_output=None):
@@ -211,7 +249,11 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     rejected_s = defaultdict(int)
     # pType = {}
 
-    lr = LogisticRegression()
+    num_of_folds = len(fhelper.folds())
+    predictors, predictors2 = train_sense_predictors(num_of_folds,
+                                                     fhelper,
+                                                     feature_tbl,
+                                                     truth)
 
     # compute sense statistics
     all_slabels = []
@@ -225,8 +267,9 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     if arg_output is not None:
         arg_output = open(arg_output, 'w')
 
+    print('\npredict for fold...', end='', flush=True)
     for i in fhelper.folds():
-        print('\npredict for fold', i)
+        print(i, end='', flush=True)
 
         # compute linkage statistics
         labels = []
@@ -321,15 +364,11 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             # else:
             #     pYp.append(0)
 
-        print('\ncompute linkage stats...', end='', flush=True)
         stats.compute_fold(labels, Yp, Y,
                            truth_count=count_fold(lcdict, plabels))
 
-        print('done!')
-
         # print('\nParagraph stats:')
         # pstats.compute_fold(plabels, pYp, pY)
-        print('compute word stats...', end='', flush=True)
         for w in wlabels:
             if w in has_words:
                 wYp.append(1)
@@ -337,11 +376,8 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                 wYp.append(0)
         wstats.compute_fold(wlabels, wYp, wY,
                             truth_count=word_ambig.count_fold(plabels))
-        print('done!')
 
-        print('compute sense statistics...', end='', flush=True)
-        train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl,
-                       truth.linkage_type)
+        lr = predictors[i]
         slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set,
                                          truth.linkage_type)
         append_sense_items(slabels, sYp, sY, feature_tbl,
@@ -351,10 +387,7 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
         all_sYp.append(sYp)
         all_sY.append(sY)
 
-        print('done!')
-        print('compute 2-level sense statistics...', end='', flush=True)
-        train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl,
-                       truth.linkage_type2)
+        lr = predictors2[i]
         sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
                                             truth.linkage_type2,
                                             non_dis=NON_DIS_2)
@@ -374,12 +407,10 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                     st
                 ))
 
-        print('done!')
-
         all_ssYp.append(ssYp)
         all_ssY.append(ssY)
 
-    print('== done ==')
+    print('\n== done ==')
 
     print('\nLinkage stats:')
     stats.print_total(truth_count=linkage_counts)
@@ -446,7 +477,7 @@ def main():
     else:
         cut = lambda x, _: linkage_probs[x] < args.threshold
 
-    print('ranking model')
+    print('===== ranking model =====')
     cross_validation(
         corpus_file,
         fhelper,
@@ -464,7 +495,7 @@ def main():
 
     if not args.perfect:
         word_probs, word_truth = load_word_probs(args.word_probs)
-        print('pipeline model')
+        print('\n===== pipeline model =====')
         cross_validation(
             corpus_file,
             fhelper,
