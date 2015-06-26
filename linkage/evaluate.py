@@ -92,27 +92,26 @@ def print_sense_scores2(Ys, Yps, label):
 
     # compute macro average
     macro_p = macro_r = macro_f = accuracy = 0
+    micro_p = micro_r = micro_f = 0
     for y, yp in zip(Ys, Yps):
         macro_p += metrics.precision_score(y, yp, average='macro')
         macro_r += metrics.recall_score(y, yp, average='macro')
         macro_f += metrics.f1_score(y, yp, average='macro')
+        micro_p += metrics.precision_score(y, yp, average='micro')
+        micro_r += metrics.recall_score(y, yp, average='micro')
+        micro_f += metrics.f1_score(y, yp, average='micro')
         accuracy += metrics.accuracy_score(y, yp)
 
     macro_p /= len(Ys)
     macro_r /= len(Ys)
     macro_f /= len(Ys)
+    micro_p /= len(Ys)
+    micro_r /= len(Ys)
+    micro_f /= len(Ys)
     accuracy /= len(Ys)
 
-    # compute micro average
-    Y = list(np.concatenate(Ys, axis=0))
-    Yp = list(np.concatenate(Yps, axis=0))
-
-    micro_p = metrics.precision_score(Y, Yp, average='micro')
-    micro_r = metrics.recall_score(Y, Yp, average='micro')
-    micro_f = metrics.f1_score(Y, Yp, average='micro')
-
     print('Accuracy = {:.04}'.format(accuracy))
-    print('length', len(Y))
+    print('length', sum(len(y) for y in Ys))
     print('Relation\tPrec\tRecall\tF1')
     print('Macro   \t{:.04}\t{:.04}\t{:.04}'.format(macro_p, macro_r, macro_f))
     print('Micro   \t{:.04}\t{:.04}\t{:.04}'.format(micro_p, micro_r, micro_f))
@@ -130,6 +129,16 @@ def print_sense_scores(Ys, Yps, label, print_accuracy=False):
         accuracy /= len(Ys)
         print('Accuracy = {:.04}'.format(accuracy))
 
+    micro_p = micro_r = micro_f = 0
+    for y, yp in zip(Ys, Yps):
+        micro_p += metrics.precision_score(y, yp, average='micro')
+        micro_r += metrics.recall_score(y, yp, average='micro')
+        micro_f += metrics.f1_score(y, yp, average='micro')
+
+    micro_p /= len(Ys)
+    micro_r /= len(Ys)
+    micro_f /= len(Ys)
+
     scores = compute_cv_sense_scores(Ys, Yps)
     Y = list(np.concatenate(Ys, axis=0))
     Yp = list(np.concatenate(Yps, axis=0))
@@ -143,9 +152,7 @@ def print_sense_scores(Ys, Yps, label, print_accuracy=False):
 
     scores.extend([
         [
-            metrics.precision_score(Y, Yp, average='micro'),
-            metrics.recall_score(Y, Yp, average='micro'),
-            metrics.f1_score(Y, Yp, average='micro'),
+            micro_p, micro_r, micro_f
         ],
         np.mean(scores, axis=0)[:3]
     ])
