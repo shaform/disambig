@@ -80,14 +80,34 @@ class CorpusFile(object):
 
 class VectorFile(object):
 
-    def __init__(self, path):
+    def __init__(self, paths):
         self.vectors = {}
-        with open(path, 'r') as f:
-            for l in f:
-                label, *vectors = l.rstrip('\n').split(' ')
-                self.dim = len(vectors)
-                vectors = numpy.array(list(float(n) for n in vectors))
-                self.vectors[label] = vectors
+        self.dim = 0
+        paths = paths.split(',')
+        for path in paths:
+            print('load {}...'.format(path))
+            with open(path, 'r') as f:
+                for l in f:
+                    label, *vectors = l.rstrip('\n').split(' ')
+                    dim = len(vectors)
+                    vectors = numpy.array(list(float(n) for n in vectors))
+                    if label in self.vectors:
+                        old_vec = self.vectors[label]
+                    else:
+                        old_vec = numpy.zeros(self.dim)
+                    self.vectors[label] = numpy.concatenate((old_vec,
+                                                             vectors))
+
+            self.dim += dim
+            for k, v in self.vectors.items():
+                if v.size == self.dim:
+                    continue
+                elif v.size == self.dim - dim:
+                    self.vectors[k] = numpy.concatenate((v,
+                                                         numpy.zeros(dim)))
+                else:
+                    print('wrong vector size')
+                    assert(False)
 
     def zeros(self):
         return numpy.zeros(self.dim)
