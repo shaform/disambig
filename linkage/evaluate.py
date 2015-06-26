@@ -69,7 +69,7 @@ _HEADERS = [
 def compute_cv_sense_scores(Ys, Yps):
     total_scores = []
     for Y, Yp in zip(Ys, Yps):
-        # get list of p, r, f
+        # get list of p, r, f, each list contains score for each class
         scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
         # convert to list
         scores = [list(ss) for ss in scores]
@@ -86,9 +86,49 @@ def compute_cv_sense_scores(Ys, Yps):
     return total_scores
 
 
-def print_sense_scores(Ys, Yps, label):
+def print_sense_scores2(Ys, Yps, label):
     print()
     print(label, ':')
+
+    # compute macro average
+    macro_p = macro_r = macro_f = accuracy = 0
+    for y, yp in zip(Ys, Yps):
+        macro_p += metrics.precision_score(y, yp, average='macro')
+        macro_r += metrics.recall_score(y, yp, average='macro')
+        macro_f += metrics.f1_score(y, yp, average='macro')
+        accuracy += metrics.accuracy_score(y, yp)
+
+    macro_p /= len(Ys)
+    macro_r /= len(Ys)
+    macro_f /= len(Ys)
+    accuracy /= len(Ys)
+
+    # compute micro average
+    Y = list(np.concatenate(Ys, axis=0))
+    Yp = list(np.concatenate(Yps, axis=0))
+
+    micro_p = metrics.precision_score(Y, Yp, average='micro')
+    micro_r = metrics.recall_score(Y, Yp, average='micro')
+    micro_f = metrics.f1_score(Y, Yp, average='micro')
+
+    print('Accuracy = {:.04}'.format(accuracy))
+    print('length', len(Y))
+    print('Relation\tPrec\tRecall\tF1')
+    print('Macro   \t{:.04}\t{:.04}\t{:.04}'.format(macro_p, macro_r, macro_f))
+    print('Micro   \t{:.04}\t{:.04}\t{:.04}'.format(micro_p, micro_r, micro_f))
+
+
+def print_sense_scores(Ys, Yps, label, print_accuracy=False):
+    print()
+    print(label, ':')
+
+    if print_accuracy:
+        accuracy = 0
+        for y, yp in zip(Ys, Yps):
+            accuracy += metrics.accuracy_score(y, yp)
+
+        accuracy /= len(Ys)
+        print('Accuracy = {:.04}'.format(accuracy))
 
     scores = compute_cv_sense_scores(Ys, Yps)
     Y = list(np.concatenate(Ys, axis=0))

@@ -9,6 +9,11 @@ from collections import defaultdict
 from multiprocessing import Pool
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
 
 
 def process_commands():
@@ -31,6 +36,11 @@ def process_commands():
 
 def predict(args):
     i, X, Y, Xt = args
+    lr = RandomForestClassifier()
+    lr = SVC()
+    lr = LinearSVC()
+    lr = GaussianNB()
+    lr = DecisionTreeClassifier()
     lr = LogisticRegression()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
