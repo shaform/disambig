@@ -11,6 +11,14 @@ from multiprocessing import Pool
 
 from sklearn.svm import SVR
 
+# classifiers
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+
 
 def process_commands():
     parser = argparse.ArgumentParser()
@@ -22,6 +30,8 @@ def process_commands():
                         help='linkage ground truth file')
     parser.add_argument('--output', required=True,
                         help='output file')
+    parser.add_argument('--output_classify', required=True,
+                        help='output classification file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
 
@@ -37,13 +47,24 @@ def predict(args):
     return Yt
 
 
+def classify(args):
+    i, X, Y, Xt = args
+    lr = LogisticRegression()
+    lr.fit(X, Y)
+    Yt = lr.predict(Xt)
+    print('completed training linkage classification for fold', i, '...')
+    return Yt
+
+
 def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
                         check_accuracy=False):
     print('training linkage probability')
 
-    linkage_probs = {}
+    probs = {}
+    classes = {}
 
     stats = evaluate.FoldStats(threshold=0.7)
+    cstats = evaluate.FoldStats()
 
     # extract training data
     num_of_folds = len(fhelper.folds())
@@ -66,27 +87,34 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
 
     # spawn processes to train
     print('\nstart training')
-    with Pool(num_of_folds) as p:
-        results = p.map(predict, input_data)
+    with Pool(num_of_folds * 2) as p:
+        results = p.map_async(predict, input_data)
+        cresults = p.map_async(classify, input_data)
+        results = results.get()
+        cresults = cresults.get()
 
     # join all data
-    for helper, Yt in zip(helper_data, results):
+    for helper, Yt, cYt in zip(helper_data, results, cresults):
         labels = helper['labels']
         Yt_truth = helper['Yt_truth']
 
         if check_accuracy:
             stats.compute_fold(labels, Yt, Yt_truth)
+            cstats.compute_fold(labels, cYt, Yt_truth)
 
-        for label, y_truth, y in zip(labels, Yt_truth, Yt):
-            linkage_probs[label] = (y_truth, y)
+        for label, y_truth, y, cy in zip(labels, Yt_truth, Yt, cYt):
+            probs[label] = (y_truth, y)
+            classes[label] = (y_truth, cy)
 
     if check_accuracy:
         print('== done ==')
-
+        print('\n== regression test ==')
         stats.print_total(truth_count=linkage_counts)
+        print('\n== classification test ==')
+        cstats.print_total(truth_count=linkage_counts)
 
-    print('linkage trained:', len(linkage_probs))
-    return linkage_probs
+    print('linkage trained:', len(probs))
+    return probs, classes
 
 
 def count_linkage(path):
@@ -95,6 +123,7 @@ def count_linkage(path):
 
 
 def output_file(path, linkage_probs):
+    print('== output to ' + path)
     with open(path, 'w') as f:
         for (label, words), (truth, prob) in sorted(linkage_probs.items()):
             f.write('{}\t{}\t{}\t{}\n'.format(
@@ -109,10 +138,11 @@ def main():
         args.linkage_features, lambda x: tuple(x.split('-')))
     linkage_counts = count_linkage(args.linkage)
 
-    linkage_probs = train_linkage_probs(fhelper, feature_tbl, linkage_counts,
-                                        check_accuracy=args.check_accuracy)
+    probs, classes = train_linkage_probs(fhelper, feature_tbl, linkage_counts,
+                                         check_accuracy=args.check_accuracy)
 
-    output_file(args.output, linkage_probs)
+    output_file(args.output, probs)
+    output_file(args.output_classify, classes)
 
 if __name__ == '__main__':
     main()

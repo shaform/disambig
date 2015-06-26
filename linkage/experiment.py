@@ -33,6 +33,8 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--linkage_probs', required=True,
                         help='linkage probability file')
+    parser.add_argument('--linkage_class', required=True,
+                        help='linkage class file')
     parser.add_argument('--perfect', action='store_true',
                         help='whether to do perfect experiment')
     parser.add_argument('--check_accuracy', action='store_true',
@@ -141,6 +143,7 @@ def train_sense_lr(lr, fhelper, data_set, feature_tbl, truth):
     lr.fit(X, Y)
 
 NON_DIS = 4
+NON_DIS_2 = 17
 
 
 def predict_sense(labels, Yp, Y, lr, feature_set, truth, non_dis=NON_DIS):
@@ -214,7 +217,7 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     all_slabels = []
     all_sYp = []
     all_sY = []
-    # structure type statistics
+    # compute level-2 sense statistics
     all_ssYp = []
     all_ssY = []
     feature_set = get_feature_set(feature_tbl)
@@ -318,13 +321,15 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             # else:
             #     pYp.append(0)
 
-        print('\nLinkage stats:')
+        print('\ncompute linkage stats...', end='', flush=True)
         stats.compute_fold(labels, Yp, Y,
                            truth_count=count_fold(lcdict, plabels))
 
+        print('done!')
+
         # print('\nParagraph stats:')
         # pstats.compute_fold(plabels, pYp, pY)
-        print('\nWord stats:')
+        print('compute word stats...', end='', flush=True)
         for w in wlabels:
             if w in has_words:
                 wYp.append(1)
@@ -332,6 +337,7 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                 wYp.append(0)
         wstats.compute_fold(wlabels, wYp, wY,
                             truth_count=word_ambig.count_fold(plabels))
+        print('done!')
 
         print('compute sense statistics...', end='', flush=True)
         train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl,
@@ -340,22 +346,22 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                                          truth.linkage_type)
         append_sense_items(slabels, sYp, sY, feature_tbl,
                            truth.linkage_type, plabels)
-        print('done!')
 
         all_slabels.append(slabels)
         all_sYp.append(sYp)
         all_sY.append(sY)
 
-        print('compute structure statistics...', end='', flush=True)
+        print('done!')
+        print('compute 2-level sense statistics...', end='', flush=True)
         train_sense_lr(lr, fhelper, fhelper.train_set(i), feature_tbl,
-                       truth.structure_type)
+                       truth.linkage_type2)
         sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
-                                            truth.structure_type,
-                                            non_dis=2)
+                                            truth.linkage_type2,
+                                            non_dis=NON_DIS_2)
         assert(slabels == sslabels)
         append_sense_items(sslabels, ssYp, ssY, feature_tbl,
-                           truth.structure_type, plabels,
-                           non_dis=2)
+                           truth.linkage_type2, plabels,
+                           non_dis=NON_DIS_2)
 
         if arg_output is not None:
             for (l, cl), rt, st in zip(slabels, sYp, ssYp):
@@ -392,10 +398,11 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     wstats.print_total(truth_count=len(words))
 
     print('Sense stats:')
-    evaluate.print_sense_scores(all_sY, all_sYp, 'Overall')
+    evaluate.print_sense_scores(all_sY, all_sYp, 'Overall', non_dis=NON_DIS)
 
-    print('Structure stats:')
-    evaluate.print_sense_scores(all_ssY, all_ssYp, 'Overall')
+    print('2-level sense stats:')
+    evaluate.print_sense_scores2(
+        all_ssY, all_ssYp, 'Overall', non_dis=NON_DIS_2)
 
     if arg_output is not None:
         arg_output.close()
@@ -415,6 +422,7 @@ def main():
 
     linkage_counts, lcdict = count_linkage(args.linkage)
     linkage_probs = load_linkage_probs(args.linkage_probs)
+    linkage_class = load_linkage_probs(args.linkage_class)
 
     word_ambig = evaluate.WordAmbig(args.word_ambig)
 
@@ -453,6 +461,22 @@ def main():
         words=words,
         perfect=args.perfect,
         arg_output=args.arg_output)
+
+    if not args.perfect:
+        word_probs, word_truth = load_word_probs(args.word_probs)
+        print('pipeline model')
+        cross_validation(
+            corpus_file,
+            fhelper,
+            feature_tbl,
+            truth,
+            detector,
+            linkage_counts,
+            lcdict,
+            ranking_probs,
+            word_ambig,
+            cut=lambda x, y: any(word_probs[(x[0], w)] < 0.5 for w in x[1]),
+            words=words)
 
     '''
     baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)

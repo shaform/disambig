@@ -86,29 +86,84 @@ def compute_cv_sense_scores(Ys, Yps):
     return total_scores
 
 
-def print_sense_scores2(Ys, Yps, label):
+def compute_indomain_micro(Y, Yp, non_dis):
+    total_pred = total_positive = correct = 0
+    for y, yp in zip(Y, Yp):
+        if yp != non_dis:
+            total_pred += 1
+        if y != non_dis:
+            total_positive += 1
+            if y == yp:
+                correct += 1
+    prec = correct / total_pred
+    recall = correct / total_positive
+    fscore = f1(prec, recall)
+
+    return prec, recall, fscore
+
+
+def compute_indomain_macro(Y, Yp, non_dis):
+    pred, positive, correct = range(3)
+
+    scores = [[0, 0, 0] for _ in range(non_dis)]
+    for y, yp in zip(Y, Yp):
+        if yp != non_dis:
+            scores[yp][pred] += 1
+        if y != non_dis:
+            scores[y][positive] += 1
+            if y == yp:
+                scores[y][correct] += 1
+
+    prec = recall = fscore = 0
+    for pd, pos, c in scores:
+        p = c / pd if pd != 0 else 0
+        r = c / pos if pos != 0 else 0
+        prec += p
+        recall += r
+        fscore += f1(p, r)
+
+    return prec / non_dis, recall / non_dis, fscore / non_dis
+
+
+def compute_cv_average(Ys, Yps, average='micro', non_dis=None):
+    prec = recall = fscore = 0
+    n = len(Ys)
+    for Y, Yp in zip(Ys, Yps):
+        if non_dis is None:
+            p, r, f, _ = metrics.precision_recall_fscore_support(Y, Yp,
+                                                                 average=average)
+        elif average == 'micro':
+            p, r, f = compute_indomain_micro(Y, Yp, non_dis)
+        else:
+            p, r, f = compute_indomain_macro(Y, Yp, non_dis)
+        prec += p
+        recall += r
+        fscore += f
+
+    prec /= n
+    recall /= n
+    fscore /= n
+
+    return prec, recall, fscore
+
+
+def compute_cv_accuracy(Ys, Yps):
+    accuracy = 0
+    n = len(Ys)
+    for Y, Yp in zip(Ys, Yps):
+        accuracy += metrics.accuracy_score(Y, Yp)
+    accuracy /= n
+    return accuracy
+
+
+def print_sense_scores2(Ys, Yps, label, non_dis=None):
     print()
     print(label, ':')
 
     # compute macro average
-    macro_p = macro_r = macro_f = accuracy = 0
-    micro_p = micro_r = micro_f = 0
-    for y, yp in zip(Ys, Yps):
-        macro_p += metrics.precision_score(y, yp, average='macro')
-        macro_r += metrics.recall_score(y, yp, average='macro')
-        macro_f += metrics.f1_score(y, yp, average='macro')
-        micro_p += metrics.precision_score(y, yp, average='micro')
-        micro_r += metrics.recall_score(y, yp, average='micro')
-        micro_f += metrics.f1_score(y, yp, average='micro')
-        accuracy += metrics.accuracy_score(y, yp)
-
-    macro_p /= len(Ys)
-    macro_r /= len(Ys)
-    macro_f /= len(Ys)
-    micro_p /= len(Ys)
-    micro_r /= len(Ys)
-    micro_f /= len(Ys)
-    accuracy /= len(Ys)
+    macro_p, macro_r, macro_f = compute_cv_average(Ys, Yps, 'macro')
+    micro_p, micro_r, micro_f = compute_cv_average(Ys, Yps, 'micro')
+    accuracy = compute_cv_accuracy(Ys, Yps)
 
     print('Accuracy = {:.04}'.format(accuracy))
     print('length', sum(len(y) for y in Ys))
@@ -116,28 +171,27 @@ def print_sense_scores2(Ys, Yps, label):
     print('Macro   \t{:.04}\t{:.04}\t{:.04}'.format(macro_p, macro_r, macro_f))
     print('Micro   \t{:.04}\t{:.04}\t{:.04}'.format(micro_p, micro_r, micro_f))
 
+    if non_dis is not None:
+        micro_p, micro_r, micro_f = compute_cv_average(Ys, Yps, 'micro',
+                                                       non_dis=non_dis)
+        macro_p, macro_r, macro_f = compute_cv_average(Ys, Yps, 'macro',
+                                                       non_dis=non_dis)
+        print('Macro*  \t{:.04}\t{:.04}\t{:.04}'.format(
+            macro_p, macro_r, macro_f))
+        print('Micro*  \t{:.04}\t{:.04}\t{:.04}'.format(
+            micro_p, micro_r, micro_f))
 
-def print_sense_scores(Ys, Yps, label, print_accuracy=False):
+
+def print_sense_scores(Ys, Yps, label, print_accuracy=False, non_dis=None):
     print()
     print(label, ':')
 
+    # calculate accuracy
     if print_accuracy:
-        accuracy = 0
-        for y, yp in zip(Ys, Yps):
-            accuracy += metrics.accuracy_score(y, yp)
-
-        accuracy /= len(Ys)
+        accuracy = compute_cv_accuracy(Ys, Yps)
         print('Accuracy = {:.04}'.format(accuracy))
 
-    micro_p = micro_r = micro_f = 0
-    for y, yp in zip(Ys, Yps):
-        micro_p += metrics.precision_score(y, yp, average='micro')
-        micro_r += metrics.recall_score(y, yp, average='micro')
-        micro_f += metrics.f1_score(y, yp, average='micro')
-
-    micro_p /= len(Ys)
-    micro_r /= len(Ys)
-    micro_f /= len(Ys)
+    micro_p, micro_r, micro_f = compute_cv_average(Ys, Yps, 'micro')
 
     scores = compute_cv_sense_scores(Ys, Yps)
     Y = list(np.concatenate(Ys, axis=0))
@@ -146,14 +200,16 @@ def print_sense_scores(Ys, Yps, label, print_accuracy=False):
     print('length', len(Y))
     print('Relation\tPrec\tRecall\tF1\tcases')
 
-    # count num
+    # count num of cases
     for y in Y:
         scores[y][-1] += 1
 
     scores.extend([
+        # micro averaging
         [
             micro_p, micro_r, micro_f
         ],
+        # macro averaging
         np.mean(scores, axis=0)[:3]
     ])
 
@@ -163,31 +219,25 @@ def print_sense_scores(Ys, Yps, label, print_accuracy=False):
             headers = headers_
 
     assert(headers is not None)
-    if len(scores) % 2:
+
+    if non_dis is not None:
         headers = list(headers)
         headers.extend(['micro-AVG*', 'macro-AVG*'])
 
         # calculate average scores for true connectives only
         rel_scores = scores[:-3]
-
-        total_pred = total_positive = positive = 0
-        for y, yp in zip(Y, Yp):
-            if yp != 4:
-                total_pred += 1
-            if y != 4:
-                total_positive += 1
-                if y == yp:
-                    positive += 1
-        prec = positive / total_pred
-        rec = positive / total_positive
+        p, r, f = compute_cv_average(Ys, Yps, 'micro', non_dis)
 
         scores.extend([
-                      [prec, rec, f1(rec, prec)],
+                      # micro averaging
+                      [p, r, f],
+                      # macro averaging
                       np.mean(rel_scores, axis=0)[:3]
                       ])
 
     for header, score in zip(headers, scores):
         score_line = '\t'.join('{:.04}'.format(s) for s in score[:3])
+        # append num of cases
         if len(score) > 3:
             score_line += '\t{}'.format(score[3])
         print('{}\t{}'.format(header, score_line))
