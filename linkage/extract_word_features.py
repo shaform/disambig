@@ -39,6 +39,9 @@ def process_commands():
     parser.add_argument('--select',
                         help='only select a feature set',
                         choices=(PN, POS, NUM, GLOVE))
+    parser.add_argument('--reverse_select',
+                        help='reverse selection',
+                        action='store_true')
 
     return parser.parse_args()
 
@@ -54,7 +57,7 @@ for k, v in FILTER_SET.items():
 
 
 def get_features(detector, corpus_file, vectors, truth, ambig_path,
-                 select=None):
+                 select=None, reverse_select=False):
 
     cands = []
     Y = []
@@ -175,14 +178,21 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                 f.write('{}\t{}\t0\t0\n'.format(
                     l, word))
 
-    if select == GLOVE:
-        X = Xext
-    elif select is None:
+    if select is None:
         X = features.transform_features(X, Xext)
+    elif select == GLOVE:
+        if reverse_select:
+            X = features.transform_features(X)
+        else:
+            X = Xext
     else:
         # PN, POS, NUM
-        features.filter_features(X, FILTER_SET[select])
-        X = features.transform_features(X)
+        features.filter_features(X, FILTER_SET[select],
+                                 reverse_select=reverse_select)
+        if reverse_select:
+            X = features.transform_features(X, Xext)
+        else:
+            X = features.transform_features(X)
 
     return cands, Y, X
 
@@ -208,7 +218,7 @@ def main():
 
     cands, Y, X = get_features(
         detector, corpus_file, vectors, truth, args.output_ambig,
-        select=args.select)
+        select=args.select, reverse_select=args.reverse_select)
 
     output_file(args.output, cands, Y, X)
 

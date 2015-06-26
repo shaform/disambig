@@ -157,14 +157,15 @@ class ProgressCounter(object):
             print('{} processed'.format(self.n))
 
 
-def print_stats(tp, tn, fp, fn, label=None):
+def print_stats(tp, tn, fp, fn, label=None, print_prf=True):
     if label is not None:
         print('\n' + label)
     print('negative: {}/{}, positive: {}/{}, accuracy: {}'.format(
         tn, tn + fp, tp, tp + fn, (tp + tn) / (tp + tn + fp + fn)))
     print('total predicted: {}'.format(tp + fp))
 
-    print_scores(tp / (tp + fn), tp / (tp + fp))
+    if print_prf:
+        print_scores(tp / (tp + fn), tp / (tp + fp))
 
 
 class WordCount(object):
@@ -271,14 +272,16 @@ class FoldStats(object):
                         self.stats['tn'],
                         self.stats['fp'],
                         self.stats['fn'],
-                        label='Total')
+                        label='Total',
+                        print_prf=False)
 
         else:
             print_stats(self.stats['tp'],
                         self.stats['tn'],
                         self.stats['fp'],
                         truth_count - self.stats['tp'],
-                        label='Overall Total')
+                        label='Overall Total',
+                        print_prf=False)
 
         self.print_cv_total()
 

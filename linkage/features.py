@@ -217,8 +217,9 @@ def transform_features(X, Xext=None):
     return X
 
 
-def filter_features(X, r):
+def filter_features(X, r, reverse_select=False):
     for x in X:
         for k in list(x):
-            if r.match(k) is None:
+            m = r.match(k) is None
+            if m ^ reverse_select:
                 del x[k]
