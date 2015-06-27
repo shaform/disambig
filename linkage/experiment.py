@@ -22,6 +22,8 @@ def process_commands():
                         help='word ambiguity file')
     parser.add_argument('--word_probs', required=True,
                         help='word probability file')
+    parser.add_argument('--word_count', required=True,
+                        help='word count file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
     parser.add_argument('--linkage_features', required=True,
@@ -241,7 +243,9 @@ def train_sense_predictors(num_of_folds, fhelper, feature_tbl, truth):
 
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, lcdict, linkage_probs, word_ambig,
-                     cut, *, words=None, perfect=False, arg_output=None):
+                     cut, *, words=None, perfect=False, arg_output=None,
+                     count_path):
+    word_count = evaluate.WordCount(count_path)
     stats = evaluate.FoldStats(show_fold=False)
     # pstats = evaluate.FoldStats(show_fold=True)
     wstats = evaluate.FoldStats(show_fold=False)
@@ -328,7 +332,10 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             # else:
             #     pType[label] = (features.num_of_sentences(tokens), 'unique')
 
-            markers.sort(key=lambda x: linkage_probs[(label, x)], reverse=True)
+            # markers.sort(
+            #    key=lambda x: linkage_probs[(label, x)], reverse=True)
+            markers.sort(
+                key=lambda x: (-len(x), x))
 
             visited = set()
             crossed = set()
@@ -374,8 +381,11 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                 wYp.append(1)
             else:
                 wYp.append(0)
+
+        total_count = word_count.count_fold(fhelper.test_set(i))
         wstats.compute_fold(wlabels, wYp, wY,
-                            truth_count=word_ambig.count_fold(plabels))
+                            truth_count=word_ambig.count_fold(plabels),
+                            total_count=total_count)
 
         lr = predictors[i]
         slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set,
@@ -428,10 +438,10 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     print('\nWord stats:')
     wstats.print_total(truth_count=len(words))
 
-    print('Sense stats:')
+    print('\n=== 1-level sense stats ===')
     evaluate.print_sense_scores(all_sY, all_sYp, 'Overall', non_dis=NON_DIS)
 
-    print('2-level sense stats:')
+    print('\n=== 2-level sense stats ===')
     evaluate.print_sense_scores2(
         all_ssY, all_ssYp, 'Overall', non_dis=NON_DIS_2)
 
@@ -475,7 +485,8 @@ def main():
     if args.perfect:
         cut = lambda x, _: any((x[0], w) not in words for w in x[1])
     else:
-        cut = lambda x, _: linkage_probs[x] < args.threshold
+        # cut = lambda x, _: linkage_probs[x] < args.threshold
+        cut = lambda x, _: linkage_class[x] < args.threshold
 
     print('===== ranking model =====')
     cross_validation(
@@ -491,23 +502,30 @@ def main():
         cut=cut,
         words=words,
         perfect=args.perfect,
+        count_path=args.word_count,
         arg_output=args.arg_output)
 
-    if not args.perfect:
-        word_probs, word_truth = load_word_probs(args.word_probs)
-        print('\n===== pipeline model =====')
-        cross_validation(
-            corpus_file,
-            fhelper,
-            feature_tbl,
-            truth,
-            detector,
-            linkage_counts,
-            lcdict,
-            ranking_probs,
-            word_ambig,
-            cut=lambda x, y: any(word_probs[(x[0], w)] < 0.5 for w in x[1]),
-            words=words)
+    # word_probs, word_truth = load_word_probs(args.word_probs)
+    # if args.perfect:
+    #     cut = lambda x, _: any((x[0], w) not in words for w in x[1])
+    # else:
+    #     cut = lambda x, _: any(word_probs[(x[0], w)] < 0.5 for w in x[1])
+    # print('\n===== pipeline model =====')
+    # cross_validation(
+    #     corpus_file,
+    #     fhelper,
+    #     feature_tbl,
+    #     truth,
+    #     detector,
+    #     linkage_counts,
+    #     lcdict,
+    #     ranking_probs,
+    #     word_ambig,
+    #     cut=cut,
+    #     words=words,
+    #     count_path=args.word_count,
+    #     perfect=args.perfect
+    # )
 
     '''
     baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)
