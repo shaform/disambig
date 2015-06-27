@@ -55,10 +55,10 @@ class LogisticRegressor():
 
 def predict(args):
     i, X, Y, Xt = args
-    lr = SVR()
+    lr = SVR(C=1.0, epsilon=0.2)
     #lr = DecisionTreeRegressor()
-    lr = LogisticRegressor()
-    lr = LinearRegression()
+    #lr = LogisticRegressor()
+    #lr = LinearRegression()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage probability for fold', i, '...')
@@ -67,7 +67,14 @@ def predict(args):
 
 def classify(args):
     i, X, Y, Xt = args
-    lr = LogisticRegression()
+    #lr = RandomForestClassifier()
+    #lr = LinearSVC()
+    lr = SVC()
+    #lr = GaussianNB()
+    #lr = DecisionTreeClassifier()
+    #lr = LogisticRegression()
+    #lr = LogisticRegressor()
+    lr = SVR(C=1.0, epsilon=0.2)
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage classification for fold', i, '...')
@@ -91,7 +98,7 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     helper_data = []
     for i in fhelper.folds():
         _, X, Y = fhelper.features(
-            fhelper.train_set(i), feature_tbl)
+            fhelper.train_set(i), feature_tbl, extend=3)
 
         labels, Xt, Yt_truth = fhelper.features(
             fhelper.test_set(i), feature_tbl)
@@ -106,10 +113,11 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     # spawn processes to train
     print('\nstart training')
     with Pool(num_of_folds * 2) as p:
-        results = p.map_async(predict, input_data)
+        # results = p.map_async(predict, input_data)
         cresults = p.map_async(classify, input_data)
-        results = results.get()
+        # results = results.get()
         cresults = cresults.get()
+        results = cresults
 
     # join all data
     for helper, Yt, cYt in zip(helper_data, results, cresults):
@@ -159,7 +167,7 @@ def main():
     probs, classes = train_linkage_probs(fhelper, feature_tbl, linkage_counts,
                                          check_accuracy=args.check_accuracy)
 
-    output_file(args.output, probs)
+    # output_file(args.output, probs)
     output_file(args.output_classify, classes)
 
 if __name__ == '__main__':
