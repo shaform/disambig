@@ -91,7 +91,7 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     helper_data = []
     for i in fhelper.folds():
         _, X, Y = fhelper.features(
-            fhelper.train_set(i), feature_tbl, extend=4)
+            fhelper.train_set(i), feature_tbl)
 
         labels, Xt, Yt_truth = fhelper.features(
             fhelper.test_set(i), feature_tbl)
