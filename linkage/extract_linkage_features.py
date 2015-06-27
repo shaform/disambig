@@ -45,6 +45,9 @@ def process_commands():
     parser.add_argument('--select',
                         help='only select a feature set',
                         choices=(PN, POS, NUM, GLOVE))
+    parser.add_argument('--reverse_select',
+                        help='reverse selection',
+                        action='store_true')
 
     return parser.parse_args()
 
@@ -65,7 +68,7 @@ for k, v in FILTER_SET.items():
 
 
 def get_linkage_features(corpus_file, detector, vectors, truth, *,
-                         select=None, perfect=False):
+                         select=None, perfect=False, reverse_select=False):
     print('get linkage features')
     cands = []
     Y = []
@@ -198,15 +201,21 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
 
             cands.append((label, indices))
 
-    if select == GLOVE:
-        X = Xext
-    elif select is None:
+    if select is None:
         X = features.transform_features(X, Xext)
+    elif select == GLOVE:
+        if reverse_select:
+            X = features.transform_features(X)
+        else:
+            X = Xext
     else:
         # PN, POS, NUM
-        features.filter_features(X, FILTER_SET[select])
-        X = features.transform_features(X)
-
+        features.filter_features(X, FILTER_SET[select],
+                                 reverse_select=reverse_select)
+        if reverse_select:
+            X = features.transform_features(X, Xext)
+        else:
+            X = features.transform_features(X)
     print('detect {} correct linkages'.format(correct_count))
 
     return cands, Y, X

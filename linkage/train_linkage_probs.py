@@ -9,7 +9,10 @@ import linkage
 from collections import defaultdict
 from multiprocessing import Pool
 
+# regressors
 from sklearn.svm import SVR
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
 
 # classifiers
 from sklearn.linear_model import LogisticRegression
@@ -38,9 +41,24 @@ def process_commands():
     return parser.parse_args()
 
 
+class LogisticRegressor():
+
+    def __init__(self):
+        self.lr = LogisticRegression()
+
+    def fit(self, X, Y):
+        self.lr.fit(X, Y)
+
+    def predict(self, X):
+        return self.lr.predict_proba(X)[:, 1]
+
+
 def predict(args):
     i, X, Y, Xt = args
-    lr = SVR(C=1.0, epsilon=0.2)
+    lr = SVR()
+    #lr = DecisionTreeRegressor()
+    lr = LogisticRegressor()
+    lr = LinearRegression()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage probability for fold', i, '...')
