@@ -166,6 +166,7 @@ LWORD_AMBIG_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_ambig.txt
 LLINKAGE_PROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_probs.txt
 LLINKAGE_CLASS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_class.txt
 LLINKAGE_PPROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_probs.txt
+LLINKAGE_PCLASS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_class.txt
 LLINKAGE_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_features.txt
 LLINKAGE_PFEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_features.txt
 LFOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
@@ -175,7 +176,7 @@ LCOUNT_FILE = $(DISAMBIG_DATA)/linkage/word_count.txt
 
 # 1. extract features for each word
 l_extract_word_features:
-	python3 $(DISAMBIG_PRG)/linkage/extract_word_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LVECTOR_FILE) --output $(LWORD_FEATURE_FILE) --output_ambig $(LWORD_AMBIG_FILE) #--select GLOVE #--reverse_select
+	python3 $(DISAMBIG_PRG)/linkage/extract_word_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --output $(LWORD_FEATURE_FILE) --output_ambig $(LWORD_AMBIG_FILE) #--select GLOVE #--reverse_select
 
 # 2. train word probabilities
 l_train_word_probs:
@@ -183,23 +184,23 @@ l_train_word_probs:
 
 # 3. extract features for each linkage
 l_extract_linkage_features:
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LVECTOR_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) #--select GLOVE  #--check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) #--select PN --reverse_select #--check_accuracy #--perfect_output $(LLINKAGE_PFEATURE_FILE)
 
 # 4. train linkage probabilities
 l_train_linkage_probs:
-	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_PROB_FILE) --output_classify $(LLINKAGE_CLASS_FILE) --check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_PROB_FILE) --output_classify $(LLINKAGE_CLASS_FILE) #--check_accuracy
 
 # 4.5. train perfect linkage probabilities
 l_train_perfect_linkage_probs:
-	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_PPROB_FILE) --output_classify $(LLINKAGE_CLASS_FILE) #--check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_PPROB_FILE) --output_classify $(LLINKAGE_PCLASS_FILE) #--check_accuracy
 
 # 5. run the experiments
 l_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_class $(LLINKAGE_CLASS_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --arg_output $(ARGUMENT_PREDICT_FILE) --check_accuracy #--threshold 6.0
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --word_count $(LCOUNT_FILE) --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_class $(LLINKAGE_CLASS_FILE) --linkage_probs $(LLINKAGE_PROB_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --arg_output $(ARGUMENT_PREDICT_FILE) --check_accuracy --threshold 0.6
 
 # 5.5 run the perfect experiments
 l_perfect_experiment:
-	python3 $(DISAMBIG_PRG)/linkage/experiment.py --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --linkage_features $(LLINKAGE_PFEATURE_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage_class $(LLINKAGE_CLASS_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --perfect --check_accuracy
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --word_count $(LCOUNT_FILE) --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --linkage_features $(LLINKAGE_PFEATURE_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage_class $(LLINKAGE_PCLASS_FILE) --linkage $(LINKAGE_FILE) --linkage_probs $(LLINKAGE_PPROB_FILE) --perfect --check_accuracy
 
 # 6. run sense experiment
 l_sense_experiment:
