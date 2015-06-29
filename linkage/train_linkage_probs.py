@@ -56,8 +56,8 @@ class LogisticRegressor():
 def predict(args):
     i, X, Y, Xt = args
     lr = SVR(C=1.0, epsilon=0.2)
-    #lr = DecisionTreeRegressor()
-    #lr = LogisticRegressor()
+    lr = DecisionTreeRegressor()
+    lr = LogisticRegressor()
     #lr = LinearRegression()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
@@ -69,12 +69,10 @@ def classify(args):
     i, X, Y, Xt = args
     #lr = RandomForestClassifier()
     #lr = LinearSVC()
-    lr = SVC()
+    #lr = SVC()
     #lr = GaussianNB()
     #lr = DecisionTreeClassifier()
-    #lr = LogisticRegression()
-    #lr = LogisticRegressor()
-    lr = SVR(C=1.0, epsilon=0.2)
+    lr = LogisticRegression()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage classification for fold', i, '...')
@@ -82,7 +80,9 @@ def classify(args):
 
 
 def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
-                        check_accuracy=False):
+                        check_accuracy=False,
+                        train_prob=True,
+                        train_classify=True):
     print('training linkage probability')
 
     probs = {}
@@ -113,11 +113,21 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     # spawn processes to train
     print('\nstart training')
     with Pool(num_of_folds * 2) as p:
-        # results = p.map_async(predict, input_data)
-        cresults = p.map_async(classify, input_data)
-        # results = results.get()
-        cresults = cresults.get()
-        results = cresults
+        if train_prob:
+            results = p.map_async(predict, input_data)
+        if train_classify:
+            cresults = p.map_async(classify, input_data)
+
+        if train_prob:
+            results = results.get()
+        if train_classify:
+            cresults = cresults.get()
+
+        if not train_prob:
+            results = cresults
+
+        if not train_classify:
+            cresults = results
 
     # join all data
     for helper, Yt, cYt in zip(helper_data, results, cresults):
@@ -158,6 +168,9 @@ def output_file(path, linkage_probs):
 
 def main():
     args = process_commands()
+    train_prob = args.output is not None
+    train_classify = args.output_classify is not None
+    assert(train_prob or train_classify)
 
     fhelper = corpus.FoldsHelper(args.folds)
     feature_tbl = features.load_features_table(
@@ -165,10 +178,14 @@ def main():
     linkage_counts = count_linkage(args.linkage)
 
     probs, classes = train_linkage_probs(fhelper, feature_tbl, linkage_counts,
-                                         check_accuracy=args.check_accuracy)
+                                         check_accuracy=args.check_accuracy,
+                                         train_prob=train_prob,
+                                         train_classify=train_classify)
 
-    # output_file(args.output, probs)
-    output_file(args.output_classify, classes)
+    if train_prob:
+        output_file(args.output, probs)
+    if train_classify:
+        output_file(args.output_classify, classes)
 
 if __name__ == '__main__':
     main()
