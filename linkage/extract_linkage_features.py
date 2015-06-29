@@ -255,6 +255,7 @@ def main():
                                        detector,
                                        vectors,
                                        truth,
+                                       reverse_select=args.reverse_select,
                                        select=args.select)
 
     output_file(args.output, cands, Y, X)
@@ -272,6 +273,7 @@ def main():
                                            vectors,
                                            truth,
                                            select=args.select,
+                                           reverse_select=args.reverse_select,
                                            perfect=True)
 
         output_file(args.perfect_output, cands, Y, X)
