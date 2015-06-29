@@ -31,9 +31,9 @@ def process_commands():
                         help='linkage features file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
-    parser.add_argument('--output', required=True,
+    parser.add_argument('--output',
                         help='output file')
-    parser.add_argument('--output_classify', required=True,
+    parser.add_argument('--output_classify',
                         help='output classification file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
