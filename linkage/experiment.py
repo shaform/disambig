@@ -96,7 +96,7 @@ def compute_ranking_probs(linkage_probs, key=None):
         words = label[1]
         token_lst = linkage.list_of_token_indices(words)
         ranking_probs[label] = (
-            len(words),
+            # len(words),
             key(label))
 
     return ranking_probs
@@ -244,6 +244,7 @@ def train_sense_predictors(num_of_folds, fhelper, feature_tbl, truth):
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, lcdict, linkage_probs, word_ambig,
                      cut, *, words=None, perfect=False, arg_output=None,
+                     predict_sense=False,
                      count_path):
     word_count = evaluate.WordCount(count_path)
     stats = evaluate.FoldStats(show_fold=False)
@@ -253,23 +254,24 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     rejected_s = defaultdict(int)
     # pType = {}
 
-    num_of_folds = len(fhelper.folds())
-    predictors, predictors2 = train_sense_predictors(num_of_folds,
-                                                     fhelper,
-                                                     feature_tbl,
-                                                     truth)
+    if not perfect and predict_sense:
+        num_of_folds = len(fhelper.folds())
+        predictors, predictors2 = train_sense_predictors(num_of_folds,
+                                                         fhelper,
+                                                         feature_tbl,
+                                                         truth)
 
-    # compute sense statistics
-    all_slabels = []
-    all_sYp = []
-    all_sY = []
-    # compute level-2 sense statistics
-    all_ssYp = []
-    all_ssY = []
-    feature_set = get_feature_set(feature_tbl)
+        # compute sense statistics
+        all_slabels = []
+        all_sYp = []
+        all_sY = []
+        # compute level-2 sense statistics
+        all_ssYp = []
+        all_ssY = []
+        feature_set = get_feature_set(feature_tbl)
 
-    if arg_output is not None:
-        arg_output = open(arg_output, 'w')
+        if arg_output is not None:
+            arg_output = open(arg_output, 'w')
 
     print('\npredict for fold...', end='', flush=True)
     for i in fhelper.folds():
@@ -326,16 +328,22 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                     wY.append(1)
                 else:
                     wY.append(0)
-
+            # if features.num_of_sentences(tokens) == 1 and any([c > 1 for c in ambig_count.values()]):
+            #    print(label, tokens)
             # if any([c > 1 for c in ambig_count.values()]):
             #     pType[label] = (features.num_of_sentences(tokens), 'ambig')
             # else:
             #     pType[label] = (features.num_of_sentences(tokens), 'unique')
 
-            # markers.sort(
-            #    key=lambda x: linkage_probs[(label, x)], reverse=True)
             markers.sort(
-                key=lambda x: (-len(x), x))
+                key=lambda x: (-len(x), -linkage_probs[(label, x)], x),
+            )
+            # markers.sort(
+            #    key=lambda x: (-linkage_probs[(label, x)], x))
+            # markers.sort(
+            #     key=lambda x: (-len(x), x))
+            # markers.sort(
+            #     key=lambda x: x)
 
             visited = set()
             crossed = set()
@@ -374,7 +382,6 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
         stats.compute_fold(labels, Yp, Y,
                            truth_count=count_fold(lcdict, plabels))
 
-        # print('\nParagraph stats:')
         # pstats.compute_fold(plabels, pYp, pY)
         for w in wlabels:
             if w in has_words:
@@ -387,38 +394,39 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                             truth_count=word_ambig.count_fold(plabels),
                             total_count=total_count)
 
-        lr = predictors[i]
-        slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set,
-                                         truth.linkage_type)
-        append_sense_items(slabels, sYp, sY, feature_tbl,
-                           truth.linkage_type, plabels)
+        if not perfect and predict_sense:
+            lr = predictors[i]
+            slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set,
+                                             truth.linkage_type)
+            append_sense_items(slabels, sYp, sY, feature_tbl,
+                               truth.linkage_type, plabels)
 
-        all_slabels.append(slabels)
-        all_sYp.append(sYp)
-        all_sY.append(sY)
+            all_slabels.append(slabels)
+            all_sYp.append(sYp)
+            all_sY.append(sY)
 
-        lr = predictors2[i]
-        sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
-                                            truth.linkage_type2,
-                                            non_dis=NON_DIS_2)
-        assert(slabels == sslabels)
-        append_sense_items(sslabels, ssYp, ssY, feature_tbl,
-                           truth.linkage_type2, plabels,
-                           non_dis=NON_DIS_2)
+            lr = predictors2[i]
+            sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
+                                                truth.linkage_type2,
+                                                non_dis=NON_DIS_2)
+            assert(slabels == sslabels)
+            append_sense_items(sslabels, ssYp, ssY, feature_tbl,
+                               truth.linkage_type2, plabels,
+                               non_dis=NON_DIS_2)
 
-        if arg_output is not None:
-            for (l, cl), rt, st in zip(slabels, sYp, ssYp):
-                cnnct = cnnct_dict[(l, cl)]
-                arg_output.write('{}\t{}\t{}\t{}\t{}\t\t\n'.format(
-                    l,
-                    '-'.join(cnnct),
-                    '-'.join(cl),
-                    rt,
-                    st
-                ))
+            if arg_output is not None:
+                for (l, cl), rt, st in zip(slabels, sYp, ssYp):
+                    cnnct = cnnct_dict[(l, cl)]
+                    arg_output.write('{}\t{}\t{}\t{}\t{}\t\t\n'.format(
+                        l,
+                        '-'.join(cnnct),
+                        '-'.join(cl),
+                        rt,
+                        st
+                    ))
 
-        all_ssYp.append(ssYp)
-        all_ssY.append(ssY)
+            all_ssYp.append(ssYp)
+            all_ssY.append(ssY)
 
     print('\n== done ==')
 
@@ -438,15 +446,17 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     print('\nWord stats:')
     wstats.print_total(truth_count=len(words))
 
-    print('\n=== 1-level sense stats ===')
-    evaluate.print_sense_scores(all_sY, all_sYp, 'Overall', non_dis=NON_DIS)
+    if not perfect and predict_sense:
+        print('\n=== 1-level sense stats ===')
+        evaluate.print_sense_scores(
+            all_sY, all_sYp, 'Overall', non_dis=NON_DIS)
 
-    print('\n=== 2-level sense stats ===')
-    evaluate.print_sense_scores2(
-        all_ssY, all_ssYp, 'Overall', non_dis=NON_DIS_2)
+        print('\n=== 2-level sense stats ===')
+        evaluate.print_sense_scores2(
+            all_ssY, all_ssYp, 'Overall', non_dis=NON_DIS_2)
 
-    if arg_output is not None:
-        arg_output.close()
+        if arg_output is not None:
+            arg_output.close()
 
 
 def main():
