@@ -36,7 +36,7 @@ def process_commands():
                         help='vector file')
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
-    parser.add_argument('--output', required=True,
+    parser.add_argument('--output',
                         help='output file')
     parser.add_argument('--perfect_output',
                         help='perfect output file')
@@ -53,7 +53,7 @@ def process_commands():
 
 
 FILTER_SET = {
-    PN: ('self_', 'parent_', 'left_sb_', 'right_sb_'),
+    PN: ('self_', 'parent_', 'left_sb_', 'right_sb_', 'me_'),
     POS: ('in_pos_', 'left_pos_', 'right_pos_'),
     NUM: ('num_of_overlapped', 'num_of_crossed',
           'num_left_boundary', 'num_right_boundary',
@@ -183,6 +183,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['num_left_boundary'] = lbound
             feature_vector['num_right_boundary'] = rbound
 
+            if perfect:
+                feature_vector['me_{}'.format('-'.join(tags))] = 1
             # P & N
             for token_indices in t_indices:
                 l_l_index = token_indices[0]
@@ -251,17 +253,18 @@ def main():
 
     print('process file')
 
-    cands, Y, X = get_linkage_features(corpus_file,
-                                       detector,
-                                       vectors,
-                                       truth,
-                                       reverse_select=args.reverse_select,
-                                       select=args.select)
+    if args.output:
+        cands, Y, X = get_linkage_features(corpus_file,
+                                           detector,
+                                           vectors,
+                                           truth,
+                                           reverse_select=args.reverse_select,
+                                           select=args.select)
 
-    output_file(args.output, cands, Y, X)
+        output_file(args.output, cands, Y, X)
 
-    if args.check_accuracy:
-        check_accuracy(X, Y)
+        if args.check_accuracy:
+            check_accuracy(X, Y)
 
     # extract perfect features for sense experiments
 

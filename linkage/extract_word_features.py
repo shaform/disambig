@@ -32,8 +32,10 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--vector', required=True,
                         help='vector file')
-    parser.add_argument('--output', required=True,
+    parser.add_argument('--output',
                         help='output file')
+    parser.add_argument('--perfect_output',
+                        help='perfect output file')
     parser.add_argument('--output_ambig',
                         help='output word ambiguity file')
     parser.add_argument('--select',
@@ -57,7 +59,7 @@ for k, v in FILTER_SET.items():
 
 
 def get_features(detector, corpus_file, vectors, truth, ambig_path,
-                 select=None, reverse_select=False):
+                 select=None, reverse_select=False, perfect=None):
 
     cands = []
     Y = []
@@ -76,9 +78,14 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
         parsed = corpus_file.parse_corpus[l]
         features_of = defaultdict(lambda: defaultdict(int))
 
-        for tags, poss in detector.detect_by_tokens(tokens,
-                                                    continuous=True,
-                                                    cross=False):
+        if perfect is not None:
+            truth_connectives = perfect[l]
+        else:
+            truth_connectives = None
+
+        for tags, poss in detector.all_tokens(tokens,
+                                              continuous=True,
+                                              truth=truth_connectives):
             # count ambiguity by truth
             for word in poss:
                 if (l, word) not in truth:
@@ -134,6 +141,9 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
                     # P & N
                     features.PN_feature_set(
                         feature_vector, parsed, l_index, r_index)
+
+                    if perfect is not None:
+                        feature_vector['me_{}'.format(cnnct)] = 1
 
                     X.append(feature_vector)
                     cands.append(cand)
@@ -210,17 +220,27 @@ def main():
 
     # load data
 
-    truth = linkage.LinkageFile(args.linkage).all_words()
+    ltruth = linkage.LinkageFile(args.linkage)
+    truth = ltruth.all_words()
     detector = linkage.LinkageDetector(args.connective)
     corpus_file = corpus.CorpusFile(
         args.corpus, args.corpus_pos, args.corpus_parse)
     vectors = corpus.VectorFile(args.vector)
 
-    cands, Y, X = get_features(
-        detector, corpus_file, vectors, truth, args.output_ambig,
-        select=args.select, reverse_select=args.reverse_select)
+    if args.output:
+        cands, Y, X = get_features(
+            detector, corpus_file, vectors, truth, args.output_ambig,
+            select=args.select, reverse_select=args.reverse_select)
 
-    output_file(args.output, cands, Y, X)
+        output_file(args.output, cands, Y, X)
+
+    if args.perfect_output:
+        cands, Y, X = get_features(
+            detector, corpus_file, vectors, truth, args.output_ambig,
+            select=args.select, reverse_select=args.reverse_select,
+            perfect=ltruth)
+
+        output_file(args.perfect_output, cands, Y, X)
 
 if __name__ == '__main__':
     main()
