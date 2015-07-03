@@ -82,8 +82,12 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
 
         if perfect:
             truth_connectives = truth[label]
+            all_tokens = list(detector.perfect_tokens(tokens,
+                                                      truth=truth_connectives))
         else:
-            truth_connectives = None
+            all_tokens = list(detector.all_tokens(tokens,
+                                                  continuous=True,
+                                                  cross=False))
 
         pos_tokens = corpus_file.pos_corpus[label]
         parsed = corpus_file.parse_corpus[label]
@@ -91,10 +95,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
         # grab overlapped statistics
         overlapped_at = defaultdict(set)
         crossed_at = defaultdict(set)
-        for _, indices in detector.all_tokens(tokens,
-                                              continuous=True,
-                                              cross=False,
-                                              truth=truth_connectives):
+        for _, indices in all_tokens:
             for x in indices:
                 token_indices = list(linkage.token_indices(x))
                 for i in token_indices:
@@ -108,10 +109,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
                     crossed_at[i].add(indices)
 
         # start construct features
-        for tags, indices in detector.all_tokens(tokens,
-                                                 continuous=True,
-                                                 cross=False,
-                                                 truth=truth_connectives):
+        for tags, indices in all_tokens:
             t_indices = linkage.list_of_token_indices(indices)
             feature_vector = defaultdict(int)
 

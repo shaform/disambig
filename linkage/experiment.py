@@ -241,6 +241,92 @@ def train_sense_predictors(num_of_folds, fhelper, feature_tbl, truth):
     return predictors, predictors2
 
 
+class Ranker(object):
+
+    def __init__(self, markers, *, probs=None, label, method, truth):
+        self.markers = markers
+        self.probs = probs
+        self.label = label
+        self.method = method
+        self.truth = truth
+
+        if method == 'greedy':
+            self.min_ambig = defaultdict(int)
+            self.ambig_comp = defaultdict(int)
+            self.ambig_dict = defaultdict(set)
+            for m in markers:
+                for c in m:
+                    self.ambig_comp[c] += 1
+                    self.ambig_dict[c].add(m)
+            for m in markers:
+                self.update_ambig(m)
+
+            self.min_ambig = dict(self.min_ambig)
+            self.ambig_comp = dict(self.ambig_comp)
+            self.ambig_dict = dict(self.ambig_dict)
+
+        elif method == 'length-prob':
+            assert(probs is not None)
+        else:
+            assert(False)
+
+        self.sort()
+
+    def update_ambig(self, m):
+        bs = [self.ambig_comp[c] for c in m]
+        mini = min(bs)
+        maxi = max(bs)
+        avg = sum(bs) / len(m)
+        self.min_ambig[m] = (mini, 0)
+
+    def sort(self):
+        label = self.label
+        if self.method == 'length-prob':
+            self.markers.sort(
+                key=lambda x: (
+                    -len(x),
+                    -self.probs[(label, x)],
+                    x),
+                reverse=True
+            )
+        elif self.method == 'greedy':
+            self.markers.sort(
+                key=lambda x: (
+                    self.min_ambig[x],
+                    -len(x),
+                    x),
+                reverse=True
+            )
+
+    def generate(self):
+        while len(self.markers) > 0:
+            m = self.markers.pop()
+            yield m
+
+            if self.method == 'greedy':
+                new_markers = set(self.markers)
+
+                # collect overlapped markers
+                modified = set()
+                for c in m:
+                    self.ambig_comp[c] -= 1
+                    if self.ambig_comp[c] == 0:
+                        del self.ambig_dict[c]
+                    else:
+                        self.ambig_dict[c].remove(m)
+                        modified |= self.ambig_dict[c]
+                for m in modified:
+                    new_markers.remove(m)
+                    del self.min_ambig[m]
+                    for c in m:
+                        self.ambig_dict[c].remove(m)
+                        self.ambig_comp[c] -= 1
+                for m in new_markers:
+                    self.update_ambig(m)
+                self.markers = list(new_markers)
+                self.sort()
+
+
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, lcdict, linkage_probs, word_ambig,
                      cut, *, words=None, perfect=False, arg_output=None,
@@ -273,6 +359,7 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
         if arg_output is not None:
             arg_output = open(arg_output, 'w')
 
+    total_detected = 0
     print('\npredict for fold...', end='', flush=True)
     for i in fhelper.folds():
         print(i, end='', flush=True)
@@ -300,17 +387,21 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
 
             if perfect:
                 truth_connectives = truth[label]
+                all_tokens = detector.perfect_tokens(tokens,
+                                                     truth=truth_connectives)
+
             else:
-                truth_connectives = None
+                all_tokens = detector.all_tokens(tokens,
+                                                 continuous=True,
+                                                 cross=False)
 
             markers = []
             ambig_count = defaultdict(int)
             cand_words = set()
-            for cnnct, indices in detector.all_tokens(tokens,
-                                                      continuous=True,
-                                                      cross=False,
-                                                      truth=truth_connectives):
+            for cnnct, indices in all_tokens:
                 markers.append(indices)
+                if indices in truth[label]:
+                    total_detected += 1
                 cnnct_dict[(label, indices)] = cnnct
 
                 # add words
@@ -335,20 +426,14 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             # else:
             #     pType[label] = (features.num_of_sentences(tokens), 'unique')
 
-            markers.sort(
-                key=lambda x: (-len(x), -linkage_probs[(label, x)], x),
-            )
-            # markers.sort(
-            #    key=lambda x: (-linkage_probs[(label, x)], x))
-            # markers.sort(
-            #     key=lambda x: (-len(x), x))
-            # markers.sort(
-            #     key=lambda x: x)
+            ranker = Ranker(markers,
+                            probs=linkage_probs, method='greedy', label=label,
+                            truth=truth[label])
 
             visited = set()
             crossed = set()
             correct = 0
-            for indices in markers:
+            for indices in ranker.generate():
                 if indices in truth[label]:
                     Y.append(1)
                 else:
@@ -432,6 +517,7 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
 
     print('\nLinkage stats:')
     stats.print_total(truth_count=linkage_counts)
+    print('total detected = {}'.format(total_detected))
     stats.print_distribution(
         word_ambig,
         function=lambda x: {(l, w) for (l, ws) in x for w in ws})
@@ -515,27 +601,29 @@ def main():
         count_path=args.word_count,
         arg_output=args.arg_output)
 
-    # word_probs, word_truth = load_word_probs(args.word_probs)
-    # if args.perfect:
-    #     cut = lambda x, _: any((x[0], w) not in words for w in x[1])
-    # else:
-    #     cut = lambda x, _: any(word_probs[(x[0], w)] < 0.5 for w in x[1])
-    # print('\n===== pipeline model =====')
-    # cross_validation(
-    #     corpus_file,
-    #     fhelper,
-    #     feature_tbl,
-    #     truth,
-    #     detector,
-    #     linkage_counts,
-    #     lcdict,
-    #     ranking_probs,
-    #     word_ambig,
-    #     cut=cut,
-    #     words=words,
-    #     count_path=args.word_count,
-    #     perfect=args.perfect
-    # )
+    if not args.perfect:
+        word_probs, word_truth = load_word_probs(args.word_probs)
+        if args.perfect:
+            cut = lambda x, _: any((x[0], w) not in words for w in x[1])
+        else:
+            cut = lambda x, _: any(
+                word_probs[(x[0], w)] < 0.5 for w in x[1]) or linkage_class[x] < args.threshold
+        print('\n===== pipeline model =====')
+        cross_validation(
+            corpus_file,
+            fhelper,
+            feature_tbl,
+            truth,
+            detector,
+            linkage_counts,
+            lcdict,
+            ranking_probs,
+            word_ambig,
+            cut=cut,
+            words=words,
+            count_path=args.word_count,
+            perfect=args.perfect
+        )
 
     '''
     baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)
