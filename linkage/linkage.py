@@ -76,8 +76,10 @@ class LinkageFile(object):
         self.linkage_type = defaultdict(dict)
         self.linkage_type2 = defaultdict(dict)
         self.structure_type = defaultdict(dict)
-        self.type_stats = defaultdict(set)
-        self.type_stats2 = defaultdict(set)
+        self.type_stats = defaultdict(lambda: defaultdict(int))
+        self.type_stats2 = defaultdict(lambda: defaultdict(int))
+        self.rtype_counts = defaultdict(int)
+        self.rtype_counts2 = defaultdict(int)
         self.type_counts = defaultdict(int)
         self.type_counts_comp = defaultdict(int)
         self.len_counts = defaultdict(int)
@@ -86,13 +88,19 @@ class LinkageFile(object):
             items = [l.rstrip().split('\t') for l in f]
 
         for plabel, words, indices, tp, tp2, sp in items:
+            tp = int(tp)
+            tp2 = int(tp2)
+            sp = int(sp)
+
             cnnct = tuple(indices.split('-'))
             self.linkage[plabel].add(cnnct)
-            self.linkage_type[plabel][cnnct] = int(tp)
-            self.linkage_type2[plabel][cnnct] = int(tp2)
-            self.structure_type[plabel][cnnct] = int(sp)
-            self.type_stats[words].add(tp)
-            self.type_stats2[words].add(tp2)
+            self.linkage_type[plabel][cnnct] = tp
+            self.linkage_type2[plabel][cnnct] = tp2
+            self.structure_type[plabel][cnnct] = sp
+            self.type_stats[words][tp] += 1
+            self.type_stats2[words][tp2] += 1
+            self.rtype_counts[tp] += 1
+            self.rtype_counts2[tp2] += 1
             self.type_counts[words] += 1
             self.len_counts[words.count('-') + 1] += 1
             for w in words.split('-'):
@@ -124,6 +132,14 @@ class LinkageFile(object):
 
         print('\n2-level')
         self.internal_print_type_stats(self.type_stats2)
+
+        print('\n1-level total')
+        for i, c in sorted(self.rtype_counts.items()):
+            print('{}: {}'.format(i, c))
+
+        print('\n2-level total')
+        for i, c in sorted(self.rtype_counts2.items()):
+            print('{}: {}'.format(i, c))
 
     def all_words(self):
         """Get identities of all single words appeared."""

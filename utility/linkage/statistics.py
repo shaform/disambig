@@ -1,6 +1,7 @@
 """Generate statistics for papers"""
 import argparse
 
+import argument
 import corpus
 import evaluate
 import linkage
@@ -12,6 +13,8 @@ def process_commands():
     parser = argparse.ArgumentParser()
     parser.add_argument('--connective', required=True,
                         help='connective file')
+    parser.add_argument('--argument', required=True,
+                        help='argument file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
     parser.add_argument('--corpus', required=True,
@@ -126,12 +129,14 @@ class Stats(object):
         print_distribution(count_by_num(self.cand_disambig_count))
 
 
-def stat_all_detect(detector, corpus_file, truth, count_path, cnnct_count_path):
+def stat_all_detect(detector, corpus_file, truth, arg_truth,
+                    count_path, cnnct_count_path):
 
     counter = evaluate.ProgressCounter()
     mstats = Stats(truth)
     cstats = Stats(truth)
     tstats = Stats(truth)
+    pstats = Stats(truth)
 
     length_count = defaultdict(int)
     for s in truth.linkage.values():
@@ -149,15 +154,26 @@ def stat_all_detect(detector, corpus_file, truth, count_path, cnnct_count_path):
     correct_count = defaultdict(int)
     incorrect_count_by_len = defaultdict(int)
     correct_count_by_len = defaultdict(int)
+    count_arg_by_len = defaultdict(int)
     total_prefect = 0
     for l, tokens in corpus_file.corpus.items():
         counter.step()
         connectives = truth[l]
 
-        # count connective stats
-        for cnnct, _ in detector.perfect_tokens(tokens, truth=connectives):
+        for c in connectives:
+            cnnct_token_indices = []
+            for lst in linkage.list_of_token_indices(c):
+                cnnct_token_indices.append(tuple(lst))
+            c_indices = tuple(cnnct_token_indices)
+            arg_indices = arg_truth[l][c_indices][-1]
+            count_arg_by_len[len(arg_indices)] += 1
+
+            # count connective stats
+        for cnnct, indices_lst in detector.perfect_tokens(tokens,
+                                                          truth=connectives):
             correct_count['-'.join(cnnct)] += 1
             correct_count_by_len[len(cnnct)] += 1
+            pstats.collect_connective(l, indices_lst)
 
         # count string matching stats
         for cnnct, indices_lst in detector.detect_all(tokens):
@@ -220,6 +236,14 @@ def stat_all_detect(detector, corpus_file, truth, count_path, cnnct_count_path):
 
     print('\n## prefect ##')
     print('total count = {}'.format(sum(correct_count_by_len.values())))
+    pstats.print_ambiguity()
+
+    print('\n## types ##')
+    truth.print_type_stats()
+
+    print('\n## arges ##')
+    for num, c in sorted(count_arg_by_len.items()):
+        print('{}\t{}'.format(num, c))
 
 
 def main():
@@ -228,8 +252,10 @@ def main():
     detector = linkage.LinkageDetector(args.connective)
     corpus_file = corpus.CorpusFile(args.corpus)
     truth = linkage.LinkageFile(args.linkage)
+    arg_truth = argument.ArgumentFile(args.argument)
+    arg_truth.init_truth(corpus_file)
 
-    stat_all_detect(detector, corpus_file, truth,
+    stat_all_detect(detector, corpus_file, truth, arg_truth,
                     args.output_count, args.output_cnnct_count)
 
 if __name__ == '__main__':
