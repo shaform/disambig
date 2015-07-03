@@ -72,6 +72,8 @@ class Stats(object):
 
         self.disambig_count = defaultdict(int)
         self.cand_disambig_count = defaultdict(int)
+        self.total_connective_types = 0
+        self.total_component_types = 0
 
     def collect_connective(self, l, indices_lst):
         self.cand_connective_count += 1
@@ -134,6 +136,13 @@ def stat_all_detect(detector, corpus_file, truth, count_path):
         for x in s:
             length_count[len(x)] += 1
 
+    print('## corpus ##')
+    print('length')
+    print_distribution(length_count)
+    print('total types of connectives: {}'.format(len(truth.type_counts)))
+    print('total types of components: {}'.format(len(truth.type_counts_comp)))
+    print()
+
     for l, tokens in corpus_file.corpus.items():
         counter.step()
 
@@ -154,10 +163,6 @@ def stat_all_detect(detector, corpus_file, truth, count_path):
     # print stats
 
     print()
-
-    print('## corpus ##')
-    print('length')
-    print_distribution(length_count)
 
     print('## string matching by components ##')
     cstats.print_component()

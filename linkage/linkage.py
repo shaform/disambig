@@ -79,6 +79,7 @@ class LinkageFile(object):
         self.type_stats = defaultdict(set)
         self.type_stats2 = defaultdict(set)
         self.type_counts = defaultdict(int)
+        self.type_counts_comp = defaultdict(int)
 
         with open(linkage_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
@@ -92,6 +93,8 @@ class LinkageFile(object):
             self.type_stats[words].add(tp)
             self.type_stats2[words].add(tp2)
             self.type_counts[words] += 1
+            for w in words.split('-'):
+                self.type_counts_comp[w] += 1
 
         for plabel, words, indices, _, _, _ in items:
             cnnct = tuple(indices.split('-'))
