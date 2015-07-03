@@ -18,6 +18,8 @@ def process_commands():
                         help='raw corpus file')
     parser.add_argument('--output_count', required=True,
                         help='output word count file')
+    parser.add_argument('--output_cnnct_count', required=True,
+                        help='output connective count file')
 
     return parser.parse_args()
 
@@ -124,7 +126,7 @@ class Stats(object):
         print_distribution(count_by_num(self.cand_disambig_count))
 
 
-def stat_all_detect(detector, corpus_file, truth, count_path):
+def stat_all_detect(detector, corpus_file, truth, count_path, cnnct_count_path):
 
     counter = evaluate.ProgressCounter()
     mstats = Stats(truth)
@@ -143,12 +145,25 @@ def stat_all_detect(detector, corpus_file, truth, count_path):
     print('total types of components: {}'.format(len(truth.type_counts_comp)))
     print()
 
+    incorrect_count = defaultdict(int)
+    correct_count = defaultdict(int)
+    incorrect_count_by_len = defaultdict(int)
+    correct_count_by_len = defaultdict(int)
+    total_prefect = 0
     for l, tokens in corpus_file.corpus.items():
         counter.step()
+        connectives = truth[l]
+
+        # count connective stats
+        for cnnct, _ in detector.perfect_tokens(tokens, truth=connectives):
+            correct_count['-'.join(cnnct)] += 1
+            correct_count_by_len[len(cnnct)] += 1
 
         # count string matching stats
-        for _, indices_lst in detector.detect_all(tokens):
+        for cnnct, indices_lst in detector.detect_all(tokens):
             mstats.collect_connective(l, indices_lst)
+            incorrect_count['-'.join(cnnct)] += 1
+            incorrect_count_by_len[len(cnnct)] += 1
 
         # collect stats by purely components
         for _, indices in detector.detect_all_components(tokens):
@@ -180,10 +195,31 @@ def stat_all_detect(detector, corpus_file, truth, count_path):
             f.write('{}\t{}\n'.format(l, v))
         print('totally {} word counts written'.format(total))
 
-    print('## segmentation##')
+    with open(cnnct_count_path, 'w') as f:
+        print('\noutput file to {}'.format(cnnct_count_path))
+        for key, v in sorted(truth.type_counts.items(),
+                             key=lambda x: (x[1], x[0]),
+                             reverse=True):
+            f.write('{}\t{}\t{}\t{}\n'.format(key,
+                                              v,
+                                              incorrect_count[key],
+                                              correct_count[key]))
+
+    with open(cnnct_count_path + '.len', 'w') as f:
+        print('\noutput file to {}'.format(cnnct_count_path + '.len'))
+        for key, v in sorted(truth.len_counts.items()):
+            f.write('{}\t{}\t{}\t{}\n'.format(key,
+                                              v,
+                                              incorrect_count_by_len[key],
+                                              correct_count_by_len[key]))
+
+    print('\n## segmentation##')
     tstats.print_connective()
     tstats.print_component()
     tstats.print_ambiguity()
+
+    print('\n## prefect ##')
+    print('total count = {}'.format(sum(correct_count_by_len.values())))
 
 
 def main():
@@ -193,7 +229,8 @@ def main():
     corpus_file = corpus.CorpusFile(args.corpus)
     truth = linkage.LinkageFile(args.linkage)
 
-    stat_all_detect(detector, corpus_file, truth, args.output_count)
+    stat_all_detect(detector, corpus_file, truth,
+                    args.output_count, args.output_cnnct_count)
 
 if __name__ == '__main__':
     main()

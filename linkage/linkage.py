@@ -80,6 +80,7 @@ class LinkageFile(object):
         self.type_stats2 = defaultdict(set)
         self.type_counts = defaultdict(int)
         self.type_counts_comp = defaultdict(int)
+        self.len_counts = defaultdict(int)
 
         with open(linkage_path, 'r') as f:
             items = [l.rstrip().split('\t') for l in f]
@@ -93,6 +94,7 @@ class LinkageFile(object):
             self.type_stats[words].add(tp)
             self.type_stats2[words].add(tp2)
             self.type_counts[words] += 1
+            self.len_counts[words.count('-') + 1] += 1
             for w in words.split('-'):
                 self.type_counts_comp[w] += 1
 
@@ -148,6 +150,17 @@ class LinkageDetector(object):
             for connective in self.connectives:
                 for component in connective:
                     self.components.add(component)
+
+    def perfect_tokens(self, tokens, *, truth):
+        list_of_tokens = list(self.detect_all(tokens))
+        components = set()
+        for indices in truth:
+            for index in indices:
+                components.add(index)
+
+        for words, indices in list_of_tokens:
+            if all(x in components for x in indices):
+                yield words, indices
 
     def all_tokens(self, tokens, *, continuous=True, cross=False, truth=None):
         list_of_tokens = list(self.detect_by_tokens(tokens,
