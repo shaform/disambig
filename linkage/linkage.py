@@ -46,6 +46,8 @@ def offsets_to_items(offsets, tokens, text):
                     max(start - it_start, 0),
                     min(end - it_start, len(tokens[it]))
                 ))
+                if end < it_end:
+                    break
 
             it += 1
             it_start = it_end
