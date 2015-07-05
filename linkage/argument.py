@@ -226,6 +226,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
         span = EDUs[i]
         start = span[0]
         end = get_end_index(span, tokens)
+        s.add('END_CHAR-'.format(tokens[span[1] - 1]))
         if start in sindices:
             s.add('CNNCT_START')
         if end in eindices:

@@ -35,7 +35,8 @@ class Predictor(object):
 
         self.write_file(path, crf_data, crf_ranges)
 
-        return subprocess.Popen([self.crf, 'learn', '-m', mpath, path])
+        return subprocess.Popen([self.crf, 'learn', '-m', mpath, path],
+                                stdout=subprocess.DEVNULL)
 
     def test(self, i, crf_data, crf_ranges, wait=False):
         mpath = '{}.{}'.format(self.model_path, i)
@@ -284,13 +285,13 @@ def rule_based(arg_spans, crf_data, corpus_file):
             arg_span.clear()
             continue
 
-        l, c_indices, cEDU, tlabels, tfeatures = cdata
-        edus = corpus_file.EDUs(l)
-        start, end = max(arg_span)
-        if end == len(edus) - 1 and min(arg_span)[0] <= 1:
-            if edus[end].endswith('。') and edus[end - 1].endswith('，'):
-                arg_span.remove((start, end))
-                arg_span.add((start, end + 1))
+        # l, c_indices, cEDU, tlabels, tfeatures = cdata
+        # edus = corpus_file.EDUs(l)
+        # start, end = max(arg_span)
+        # if end == len(edus) - 1 and min(arg_span)[0] <= 1:
+        #     if edus[end].endswith('。') and edus[end - 1].endswith('，'):
+        #         arg_span.remove((start, end))
+        #         arg_span.add((start, end + 1))
 
     for arg_span in arg_spans:
         assert(len(arg_span) != 1)
@@ -325,8 +326,12 @@ def test(fhelper, train_args, test_args, corpus_file,
         test_crf_data.append(extract_crf_data(fhelper.test_set(i), test_set))
 
         processes.append(predictor.train(i, crf_data, crf_ranges))
-    for p in processes:
+
+    print('training...', end='', flush=True)
+    for i, p in enumerate(processes):
         p.wait()
+        print(i, end='', flush=True)
+    print()
 
     print('start testing')
     processes = []
@@ -367,6 +372,7 @@ def test(fhelper, train_args, test_args, corpus_file,
             correct = 0
             tp = fp = total = 0
             i_tp = i_fp = i_total = 0
+            ''' use each arg to evaluate
             for arg_span, item in zip(pds, crf_data):
                 s = train_args.edu_truth[item[0]][item[1]]
                 log_error(log_out, s, arg_span, item, corpus_file,
@@ -386,7 +392,45 @@ def test(fhelper, train_args, test_args, corpus_file,
                     total += len(s)
                     if len(s) > 0:
                         i_total += 1
-            assert(sum(len(pds) for pds in pds) == tp + fp)
+            '''
+
+            for arg_span, item in zip(pds, crf_data):
+                s = train_args.edu_truth[item[0]][item[1]]
+                log_error(log_out, s, arg_span, item, corpus_file,
+                          stats=log_stats)
+                truth_boundaries = set()
+                for start, end in s:
+                    truth_boundaries.add(start)
+                    truth_boundaries.add(end)
+                assert(len(truth_boundaries) == len(s) + 1
+                       or len(s) == len(truth_boundaries) == 0)
+
+                pd_boundaries = set()
+                for start, end in arg_span:
+                    pd_boundaries.add(start)
+                    pd_boundaries.add(end)
+                assert(len(pd_boundaries) == len(arg_span) + 1
+                       or len(arg_span) == len(pd_boundaries) == 0)
+
+                tp += len(truth_boundaries & pd_boundaries)
+                fp += len(pd_boundaries - truth_boundaries)
+                if s == arg_span:
+                    correct += 1
+                    if len(s) > 0:
+                        i_tp += 1
+                elif len(arg_span) > 0:
+                    i_fp += 1
+
+            for l in fhelper.test_set(i):
+                d = train_args.edu_truth[l]
+                for s in d.values():
+                    if len(s) == 0:
+                        continue
+                    total += len(s) + 1
+                    i_total += 1
+
+            assert(
+                sum(len(pd) + 1 if len(pd) != 0 else 0 for pd in pds) == tp + fp)
             cv_stats['Total'].append(total)
             cv_stats['iTotal'].append(i_total)
             cv_stats['Propose'].append(tp + fp)
