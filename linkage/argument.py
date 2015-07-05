@@ -8,6 +8,27 @@ _ENDs = ('?', '”', '…', '──', '、', '。', '」', '！', '，', '：', 
 _BEFORE, _BEGIN, _INSIDE, _AFTER = range(4)
 
 
+def cEDU_to_labels(cEDU, labels):
+    start = min(cEDU)
+    end = max(cEDU)
+    for i, l in enumerate(labels):
+        if i < start:
+            labels[i] = _BEFORE
+        elif i > end:
+            labels[i] = _AFTER
+        elif i in cEDU:
+            labels[i] = _BEGIN
+        else:
+            labels[i] = _INSIDE
+
+    if start == end:
+        if end < len(labels) - 1:
+            labels[end + 1] = _BEGIN
+        elif len(labels) > 1:
+            labels[start - 1] = _BEGIN
+    return labels
+
+
 def is_argument_label(l):
     return l in (_BEGIN, _INSIDE)
 

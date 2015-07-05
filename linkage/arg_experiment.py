@@ -79,6 +79,7 @@ def process_commands():
     parser.add_argument('--keep_boundary', action='store_true')
     parser.add_argument('--hierarchy_ranges', action='store_true')
     parser.add_argument('--hierarchy_adjust', action='store_true')
+    parser.add_argument('--use_baseline', action='store_true')
 
     return parser.parse_args()
 
@@ -173,10 +174,11 @@ def output_crf(fout, crf_data, ranges=None):
             fout.write('\n')
 
 
-def load_predict(fin, ranges):
+def load_predict(fin, ranges, use_baseline=False, datas=None):
     arg_spans = []
     probs = []
     labels = []
+
     for l in fin:
         l = l.strip()
         if l.startswith('@'):
@@ -194,6 +196,9 @@ def load_predict(fin, ranges):
             argument.correct_labels(labels)
             argument.check_continuity(labels)
             idx = len(arg_spans)
+            if use_baseline:
+                cEDU = datas[idx][3]
+                labels = argument.cEDU_to_labels(cEDU, labels)
             start = ranges[idx][0][0] if ranges is not None else 0
             arg_spans.append(argument.labels_to_offsets(
                 labels,
@@ -305,7 +310,8 @@ def test(fhelper, train_args, test_args, corpus_file,
          log_path,
          bounded=None,
          keep_boundary=False, hierarchy_ranges=False,
-         hierarchy_adjust=False):
+         hierarchy_adjust=False,
+         use_baseline=False):
 
     train_args.init_truth(corpus_file)
     data_set, test_set = extract_features(corpus_file,
@@ -349,7 +355,8 @@ def test(fhelper, train_args, test_args, corpus_file,
     pred_probs = []
     for crf_data, ranges, p in zip(test_crf_data, test_crf_ranges, processes):
         p.wait()
-        arg_spans, probs = load_predict(p.stdout, ranges)
+        arg_spans, probs = load_predict(p.stdout, ranges,
+                                        use_baseline, crf_data)
         assert(len(arg_spans) == len(crf_data))
         preds.append(arg_spans)
         pred_probs.append(probs)
@@ -606,7 +613,8 @@ def main():
          args.train, args.test, args.model, args.crfsuite,
          args.log,
          args.bounded,
-         keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust
+         keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust,
+         use_baseline=args.use_baseline
          )
 
 
