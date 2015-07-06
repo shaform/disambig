@@ -402,7 +402,16 @@ def test(fhelper, train_args, test_args, corpus_file,
             '''
 
             for arg_span, item in zip(pds, crf_data):
-                s = train_args.edu_truth[item[0]][item[1]]
+                label, cindices, *_ = item
+
+                s = set()
+                if cindices in train_args.argument[label]:
+                    rtype = train_args.argument[label][cindices][1]
+                    pd_rtype = test_args.argument[label][cindices][1]
+                    if rtype == pd_rtype:
+                        s = train_args.edu_truth[label][cindices]
+
+                right_rtype = train_args
                 log_error(log_out, s, arg_span, item, corpus_file,
                           stats=log_stats)
                 truth_boundaries = set()
