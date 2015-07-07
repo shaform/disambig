@@ -58,7 +58,8 @@ for k, v in FILTER_SET.items():
     FILTER_SET[k] = re.compile('({})'.format('|'.join(v)))
 
 
-def get_features(detector, corpus_file, vectors, truth, ambig_path,
+def get_features(detector, corpus_file, vectors, truth,
+                 ambig_path=None,
                  select=None, reverse_select=False, perfect=None):
 
     cands = []
@@ -80,20 +81,14 @@ def get_features(detector, corpus_file, vectors, truth, ambig_path,
 
         if perfect is not None:
             truth_connectives = perfect[l]
-        else:
-            truth_connectives = None
 
-        for tags, poss in detector.all_tokens(tokens,
-                                              continuous=True,
-                                              truth=truth_connectives):
             # count ambiguity by truth
-            for word in poss:
-                if (l, word) not in truth:
-                    break
-            else:
+            for tags, poss in detector.perfect_tokens(tokens,
+                                                      truth=truth_connectives):
                 for word in poss:
                     t_ambig[(l, word)] += 1
 
+        for tags, poss in detector.all_tokens(tokens, continuous=True):
             for cnnct, pos in zip(tags, poss):
                 cand = (l, pos)
                 feature_vector = features_of[cand]
@@ -229,7 +224,7 @@ def main():
 
     if args.output:
         cands, Y, X = get_features(
-            detector, corpus_file, vectors, truth, args.output_ambig,
+            detector, corpus_file, vectors, truth,
             select=args.select, reverse_select=args.reverse_select)
 
         output_file(args.output, cands, Y, X)
