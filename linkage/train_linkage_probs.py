@@ -31,6 +31,10 @@ def process_commands():
                         help='linkage features file')
     parser.add_argument('--linkage', required=True,
                         help='linkage ground truth file')
+    parser.add_argument('--word_ambig', required=True,
+                        help='word ambiguity file')
+    parser.add_argument('--word_count', required=True,
+                        help='word count file')
     parser.add_argument('--output',
                         help='output file')
     parser.add_argument('--output_classify',
@@ -44,7 +48,7 @@ def process_commands():
 class LogisticRegressor():
 
     def __init__(self):
-        self.lr = LogisticRegression()
+        self.lr = LogisticRegression(penalty='l1')
 
     def fit(self, X, Y):
         self.lr.fit(X, Y)
@@ -72,7 +76,7 @@ def classify(args):
     #lr = SVC()
     #lr = GaussianNB()
     #lr = DecisionTreeClassifier()
-    lr = LogisticRegression()
+    lr = LogisticRegression(penalty='l1')
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage classification for fold', i, '...')
@@ -80,15 +84,25 @@ def classify(args):
 
 
 def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
+                        ambig_path,
+                        count_path,
                         check_accuracy=False,
                         train_prob=True,
                         train_classify=True):
+
+    word_ambig = None
+    if check_accuracy:
+        word_ambig = evaluate.WordAmbig(ambig_path)
+
+    word_count = None
+    if check_accuracy:
+        word_count = evaluate.WordCount(count_path)
+
     print('training linkage probability')
 
     probs = {}
     classes = {}
 
-    stats = evaluate.FoldStats(threshold=0.7)
     cstats = evaluate.FoldStats()
 
     # extract training data
@@ -131,12 +145,33 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
 
     # join all data
     for helper, Yt, cYt in zip(helper_data, results, cresults):
+        i = helper['i']
         labels = helper['labels']
         Yt_truth = helper['Yt_truth']
 
         if check_accuracy:
-            stats.compute_fold(labels, Yt, Yt_truth)
-            cstats.compute_fold(labels, cYt, Yt_truth)
+            truth_count = word_ambig.count_fold(fhelper.test_set(i))
+            total_count = word_count.count_fold(fhelper.test_set(i))
+
+            cclabels = []
+            ccYt = []
+            ccYt_truth = []
+
+            predictions = set()
+            for (l, indices_lst), cy in zip(labels, cYt):
+                if cy > 0.5:
+                    for indices in indices_lst:
+                        predictions.add((l, indices))
+
+            for label in predictions:
+                cclabels.append(label)
+                ccYt.append(1)
+                cy = 1 if label in word_ambig.ambig else 0
+                ccYt_truth.append(cy)
+
+            cstats.compute_fold(cclabels, ccYt, ccYt_truth,
+                                truth_count=truth_count,
+                                total_count=total_count)
 
         for label, y_truth, y, cy in zip(labels, Yt_truth, Yt, cYt):
             probs[label] = (y_truth, y)
@@ -144,10 +179,8 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
 
     if check_accuracy:
         print('== done ==')
-        print('\n== regression test ==')
-        stats.print_total(truth_count=linkage_counts)
         print('\n== classification test ==')
-        cstats.print_total(truth_count=linkage_counts)
+        cstats.print_total(truth_count=len(word_ambig))
 
     print('linkage trained:', len(probs))
     return probs, classes
@@ -178,6 +211,8 @@ def main():
     linkage_counts = count_linkage(args.linkage)
 
     probs, classes = train_linkage_probs(fhelper, feature_tbl, linkage_counts,
+                                         ambig_path=args.word_ambig,
+                                         count_path=args.word_count,
                                          check_accuracy=args.check_accuracy,
                                          train_prob=train_prob,
                                          train_classify=train_classify)
