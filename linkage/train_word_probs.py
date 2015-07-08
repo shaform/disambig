@@ -34,6 +34,18 @@ def process_commands():
     return parser.parse_args()
 
 
+class LogisticRegressor():
+
+    def __init__(self):
+        self.lr = LogisticRegression()
+
+    def fit(self, X, Y):
+        self.lr.fit(X, Y)
+
+    def predict(self, X):
+        return self.lr.predict_proba(X)[:, 1]
+
+
 def predict(args):
     i, X, Y, Xt = args
     lr = RandomForestClassifier()
@@ -42,6 +54,7 @@ def predict(args):
     lr = GaussianNB()
     lr = DecisionTreeClassifier()
     lr = LogisticRegression()
+    lr = LogisticRegressor()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training word probability for fold', i, '...')
