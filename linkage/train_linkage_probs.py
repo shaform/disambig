@@ -48,7 +48,7 @@ def process_commands():
 class LogisticRegressor():
 
     def __init__(self):
-        self.lr = LogisticRegression(penalty='l1')
+        self.lr = LogisticRegression()
 
     def fit(self, X, Y):
         self.lr.fit(X, Y)
@@ -62,7 +62,6 @@ def predict(args):
     lr = SVR(C=1.0, epsilon=0.2)
     lr = DecisionTreeRegressor()
     lr = LogisticRegressor()
-    #lr = LinearRegression()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage probability for fold', i, '...')
@@ -76,7 +75,7 @@ def classify(args):
     #lr = SVC()
     #lr = GaussianNB()
     #lr = DecisionTreeClassifier()
-    lr = LogisticRegression(penalty='l1')
+    lr = LogisticRegressor()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage classification for fold', i, '...')
@@ -103,6 +102,7 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     probs = {}
     classes = {}
 
+    stats = evaluate.FoldStats()
     cstats = evaluate.FoldStats()
 
     # extract training data
@@ -169,6 +169,8 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
                 cy = 1 if label in word_ambig.ambig else 0
                 ccYt_truth.append(cy)
 
+            stats.compute_fold(labels, cYt, Yt_truth)
+
             cstats.compute_fold(cclabels, ccYt, ccYt_truth,
                                 truth_count=truth_count,
                                 total_count=total_count)
@@ -179,7 +181,9 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
 
     if check_accuracy:
         print('== done ==')
-        print('\n== classification test ==')
+        print('\n== classification test on connective ==')
+        stats.print_total(truth_count=linkage_counts)
+        print('\n== classification test on component ==')
         cstats.print_total(truth_count=len(word_ambig))
 
     print('linkage trained:', len(probs))
