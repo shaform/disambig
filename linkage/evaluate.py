@@ -67,7 +67,7 @@ _HEADERS = [
         # 因果关系
         'cause-result',
         # 推断关系
-        'inference',
+        #'inference',
         # 假设关系
         'hypothetical',
         # 目的关系
@@ -75,7 +75,7 @@ _HEADERS = [
         # 条件关系
         'condition',
         # 背景关系
-        'background',
+        #'background',
         # 并列关系
         'coordination',
         # 顺承关系
@@ -91,13 +91,13 @@ _HEADERS = [
         # 让步关系
         'concessive',
         # 解说关系
-        'explanation',
+        #'explanation',
         # 总分关系
         'summary-elaboration',
         # 例证关系
         'example',
         # 评价关系
-        'evaluation',
+        #'evaluation',
         'micro-AVG',
         'macro-AVG',
     ],
