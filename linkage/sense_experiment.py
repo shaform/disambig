@@ -18,7 +18,7 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 
-NOT_COUNTED = (1, 5, 13, 16)
+NOT_COUNTED = (1, 5, 16)
 
 TRANS = {}
 
@@ -91,8 +91,8 @@ def main():
 
     lr = SVC()
     lr = LogisticRegression()
-    lr = LogisticRegressionCV()
     lr = GaussianNB()
+    lr = LogisticRegressionCV()
 
     print('predict 1-level...')
     folds = cross_validation.StratifiedKFold(
