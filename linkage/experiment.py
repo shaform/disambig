@@ -10,6 +10,8 @@ from collections import defaultdict
 from multiprocessing import Pool
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.naive_bayes import GaussianNB
 
 
 def process_commands():
@@ -149,6 +151,16 @@ def collect_sense_data(fhelper, data_set, feature_tbl, truth):
 def train_sense_lr(args):
     X, Y = args
     lr = LogisticRegression()
+    lr = LogisticRegressionCV()
+    lr.fit(X, Y)
+    print('.', end='', flush=True)
+    return lr
+
+
+def train_sense_lr_simple(args):
+    X, Y = args
+    lr = LogisticRegression()
+    lr = GaussianNB()
     lr.fit(X, Y)
     print('.', end='', flush=True)
     return lr
@@ -181,18 +193,47 @@ def predict_sense(labels, Yp, Y, lr, feature_set, truth, non_dis=NON_DIS):
 def append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels,
                        non_dis=NON_DIS):
     s = set(slabels)
-    ps = set(plabels)
+
+    wsYp = []
+    wsY = []
+
+    wlabels = {}
+    pwlabels = defaultdict(lambda: non_dis)
+    for label, types in truth.items():
+        if label in plabels:
+            for l, t in types.items():
+                for windex in l:
+                    wlabels[(label, windex)] = t
+
+    for (label, indices), yp, y in zip(slabels, sYp, sY):
+        for windex in indices:
+            wlabel = (label, windex)
+            assert(wlabel not in pwlabels)
+            if yp != non_dis:
+                pwlabels[wlabel] = yp
+
+    for wlabel, y in wlabels.items():
+        wsY.append(y)
+        wsYp.append(pwlabels[wlabel])
+
+    for wlabel, yp in pwlabels.items():
+        if wlabel not in wlabels:
+            wsY.append(non_dis)
+            wsYp.append(yp)
 
     for label, all_features in feature_tbl.items():
         if label in plabels:
             for l, y, x in all_features:
                 if (label, l) not in s:
                     s.add((label, l))
+
                     if y == 0:
                         # non-discourse
-                        sY.append(non_dis)
+                        ctype = non_dis
                     else:
-                        sY.append(truth[label][l])
+                        ctype = truth[label][l]
+
+                    sY.append(ctype)
                     sYp.append(non_dis)
 
     for label, types in truth.items():
@@ -202,6 +243,8 @@ def append_sense_items(slabels, sYp, sY, feature_tbl, truth, plabels,
                     s.add((label, l))
                     sY.append(t)
                     sYp.append(non_dis)
+
+    return wsYp, wsY
 
 
 def get_feature_set(feature_tbl):
@@ -233,7 +276,7 @@ def train_sense_predictors(num_of_folds, fhelper, feature_tbl, truth):
 
     with Pool(num_of_folds * 2) as p:
         predictors = p.map_async(train_sense_lr, predictors)
-        predictors2 = p.map_async(train_sense_lr, predictors2)
+        predictors2 = p.map_async(train_sense_lr_simple, predictors2)
         predictors = predictors.get()
         predictors2 = predictors2.get()
 
@@ -277,7 +320,28 @@ class Ranker(object):
         mini = min(bs)
         maxi = max(bs)
         avg = sum(bs) / len(m)
-        self.min_ambig[m] = (mini, 0)
+
+        outer = set()
+        for c in m:
+            outer |= self.ambig_dict[c]
+        outer.remove(m)
+
+        stats = defaultdict(int)
+        for n in outer:
+            for c in n:
+                stats[c] += 1
+
+        allowed = 1 if mini > 1 else 0
+        '''
+        if allowed == 1:
+            for c, v in stats.items():
+                if self.ambig_comp[c] <= v:
+                    assert(self.ambig_comp[c] == v)
+                    allowed = 2
+                    break
+        '''
+
+        self.min_ambig[m] = (allowed, 0)
 
     def sort(self):
         label = self.label
@@ -294,6 +358,7 @@ class Ranker(object):
                 key=lambda x: (
                     self.min_ambig[x],
                     -len(x),
+                    -self.probs[(label, x)],
                     x),
                 reverse=True
             )
@@ -330,23 +395,28 @@ class Ranker(object):
 def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      linkage_counts, lcdict, linkage_probs, word_ambig,
                      cut, *, words=None, perfect=False, arg_output=None,
-                     predict_sense=False,
+                     predict_sstats=True,
+                     predict_pstats=False,
+                     predict_wstats=False,
                      count_path):
     word_count = evaluate.WordCount(count_path)
-    stats = evaluate.FoldStats(show_fold=False)
-    # pstats = evaluate.FoldStats(show_fold=True)
+    stats = evaluate.FoldStats(show_fold=True)
+    pstats = evaluate.FoldStats(show_fold=False)
     wstats = evaluate.FoldStats(show_fold=False)
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
-    # pType = {}
+    pType = {}
 
-    if not perfect and predict_sense:
+    if not perfect and predict_sstats:
         num_of_folds = len(fhelper.folds())
         predictors, predictors2 = train_sense_predictors(num_of_folds,
                                                          fhelper,
                                                          feature_tbl,
                                                          truth)
 
+        # compute word sense statistics
+        all_wsYp = []
+        all_wsY = []
         # compute sense statistics
         all_slabels = []
         all_sYp = []
@@ -371,8 +441,8 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
 
         # compute paragraph statistics
         plabels = list(fhelper.test_set(i))
-        # pYp = []
-        # pY = [1] * len(plabels)
+        pYp = []
+        pY = []
 
         # compute word statistics
         wlabels = []
@@ -421,13 +491,15 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                     wY.append(0)
             # if features.num_of_sentences(tokens) == 1 and any([c > 1 for c in ambig_count.values()]):
             #    print(label, tokens)
-            # if any([c > 1 for c in ambig_count.values()]):
-            #     pType[label] = (features.num_of_sentences(tokens), 'ambig')
-            # else:
-            #     pType[label] = (features.num_of_sentences(tokens), 'unique')
+            is_ambig_sent = any([c > 1 for c in ambig_count.values()])
+            if is_ambig_sent:
+                pType[label] = (features.num_of_sentences(tokens), 'ambig')
+            else:
+                pType[label] = (features.num_of_sentences(tokens), 'unique')
 
             ranker = Ranker(markers,
-                            probs=linkage_probs, method='greedy', label=label,
+                            probs=linkage_probs, method='length-prob',
+                            label=label,
                             truth=truth[label])
 
             visited = set()
@@ -459,15 +531,21 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
 
                 ilen = len(indices)
 
-            # if correct == len(truth[label]):
-            #     pYp.append(1)
-            # else:
-            #     pYp.append(0)
+            if predict_pstats:
+                if features.num_of_sentences(tokens) == 1 and is_ambig_sent:
+                    # if is_ambig_sent:
+                    # if True:
+                    pY.append(1)
+                    if correct == len(truth[label]):
+                        pYp.append(1)
+                    else:
+                        pYp.append(0)
 
         stats.compute_fold(labels, Yp, Y,
                            truth_count=count_fold(lcdict, plabels))
 
-        # pstats.compute_fold(plabels, pYp, pY)
+        if predict_pstats:
+            pstats.compute_fold(plabels, pYp, pY)
         for w in wlabels:
             if w in has_words:
                 wYp.append(1)
@@ -479,19 +557,23 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                             truth_count=word_ambig.count_fold(plabels),
                             total_count=total_count)
 
-        if not perfect and predict_sense:
+        if not perfect and predict_sstats:
             lr = predictors[i]
-            slabels, sYp, sY = predict_sense(labels, Yp, Y, lr, feature_set,
+            slabels, sYp, sY = predict_sense(labels, Yp, Y, lr,
+                                             feature_set,
                                              truth.linkage_type)
-            append_sense_items(slabels, sYp, sY, feature_tbl,
-                               truth.linkage_type, plabels)
+            wsYp, wsY = append_sense_items(slabels, sYp, sY, feature_tbl,
+                                           truth.linkage_type, plabels)
 
             all_slabels.append(slabels)
             all_sYp.append(sYp)
             all_sY.append(sY)
+            all_wsYp.append(wsYp)
+            all_wsY.append(wsY)
 
             lr = predictors2[i]
-            sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr, feature_set,
+            sslabels, ssYp, ssY = predict_sense(labels, Yp, Y, lr,
+                                                feature_set,
                                                 truth.linkage_type2,
                                                 non_dis=NON_DIS_2)
             assert(slabels == sslabels)
@@ -524,18 +606,24 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     stats.count_by(label='length')
     print('rejected overlapped:', rejected_ov, 'rejected scores:', rejected_s)
 
-    # print('\nParagraph stats:')
-    # pstats.print_total()
-    # pstats.count_by(function=pType.get, label='Sentence Length')
-    # pstats.count_by(function=lambda x: pType[x][1], label='Ambiguity')
+    if predict_pstats:
+        print('\nParagraph stats:')
+        pstats.print_total()
+        pstats.count_by(function=pType.get, label='Sentence Length')
+        pstats.count_by(function=lambda x: pType[x][1], label='Ambiguity')
 
-    print('\nWord stats:')
-    wstats.print_total(truth_count=len(words))
+    if not perfect and predict_wstats:
+        print('\nWord stats:')
+        wstats.print_total(truth_count=len(words))
 
-    if not perfect and predict_sense:
+    if not perfect and predict_sstats:
         print('\n=== 1-level sense stats ===')
         evaluate.print_sense_scores(
             all_sY, all_sYp, 'Overall', non_dis=NON_DIS)
+
+        print('\n=== 1-level sense stats for words ===')
+        evaluate.print_sense_scores(
+            all_wsY, all_wsYp, 'Overall', non_dis=NON_DIS)
 
         print('\n=== 2-level sense stats ===')
         evaluate.print_sense_scores2(
@@ -607,7 +695,7 @@ def main():
             cut = lambda x, _: any((x[0], w) not in words for w in x[1])
         else:
             cut = lambda x, _: any(
-                word_probs[(x[0], w)] < 0.5 for w in x[1]) or linkage_class[x] < args.threshold
+                word_probs[(x[0], w)] < args.threshold for w in x[1])  # or linkage_class[x] < args.threshold
         print('\n===== pipeline model =====')
         cross_validation(
             corpus_file,
