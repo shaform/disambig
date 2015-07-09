@@ -62,15 +62,56 @@ _HEADERS = [
         'non-discourse',
         'micro-AVG',
         'macro-AVG',
-    ]
+    ],
+    [
+        # 因果关系
+        'cause-result',
+        # 推断关系
+        'inference',
+        # 假设关系
+        'hypothetical',
+        # 目的关系
+        'purpose',
+        # 条件关系
+        'condition',
+        # 背景关系
+        'background',
+        # 并列关系
+        'coordination',
+        # 顺承关系
+        'continue',
+        # 递进关系
+        'progressive',
+        # 选择关系
+        'selectional',
+        # 对比关系
+        'inverse',
+        # 转折关系
+        'transition',
+        # 让步关系
+        'concessive',
+        # 解说关系
+        'explanation',
+        # 总分关系
+        'summary-elaboration',
+        # 例证关系
+        'example',
+        # 评价关系
+        'evaluation',
+        'micro-AVG',
+        'macro-AVG',
+    ],
 ]
 
 
-def compute_cv_sense_scores(Ys, Yps):
+def compute_cv_sense_scores(Ys, Yps, labels=None):
     total_scores = []
     for Y, Yp in zip(Ys, Yps):
         # get list of p, r, f, each list contains score for each class
-        scores = list(metrics.precision_recall_fscore_support(Y, Yp)[:3])
+        scores = list(metrics.precision_recall_fscore_support(
+            Y,
+            Yp,
+            labels=labels)[:3])
         # convert to list
         scores = [list(ss) for ss in scores]
         # convert to list of (p, r, f)
@@ -182,7 +223,8 @@ def print_sense_scores2(Ys, Yps, label, non_dis=None):
             micro_p, micro_r, micro_f))
 
 
-def print_sense_scores(Ys, Yps, label, print_accuracy=False, non_dis=None):
+def print_sense_scores(Ys, Yps, label,
+                       print_accuracy=False, non_dis=None, labels=None):
     print()
     print(label, ':')
 
@@ -193,7 +235,7 @@ def print_sense_scores(Ys, Yps, label, print_accuracy=False, non_dis=None):
 
     micro_p, micro_r, micro_f = compute_cv_average(Ys, Yps, 'micro')
 
-    scores = compute_cv_sense_scores(Ys, Yps)
+    scores = compute_cv_sense_scores(Ys, Yps, labels=labels)
     Y = list(np.concatenate(Ys, axis=0))
     Yp = list(np.concatenate(Yps, axis=0))
 
@@ -355,7 +397,8 @@ class FoldStats(object):
         self.stats['fp'] += fp
         self.stats['fn'] += fn
 
-        recall, prec = tp / (tp + fn), tp / (tp + fp)
+        recall = tp / (tp + fn) if tp + fn != 0 else 0
+        prec = tp / (tp + fp) if tp + fp != 0 else 0
         accuracy = (tp + tn) / (tp + tn + fp + fn)
         self.cv_stats['prec'].append(prec)
         self.cv_stats['recall'].append(recall)

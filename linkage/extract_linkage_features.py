@@ -18,6 +18,7 @@ PN = 'PN'
 POS = 'POS'
 NUM = 'NUM'
 GLOVE = 'GLOVE'
+CNNCT = 'CNNCT'
 
 
 def process_commands():
@@ -44,7 +45,7 @@ def process_commands():
                         help='use svm to check classification accuracy')
     parser.add_argument('--select',
                         help='only select a feature set',
-                        choices=(PN, POS, NUM, GLOVE))
+                        choices=(PN, POS, NUM, GLOVE, CNNCT))
     parser.add_argument('--reverse_select',
                         help='reverse selection',
                         action='store_true')
@@ -53,13 +54,14 @@ def process_commands():
 
 
 FILTER_SET = {
-    PN: ('self_', 'parent_', 'left_sb_', 'right_sb_', 'me_'),
+    PN: ('self_', 'parent_', 'left_sb_', 'right_sb_'),
     POS: ('in_pos_', 'left_pos_', 'right_pos_'),
     NUM: ('num_of_overlapped', 'num_of_crossed',
           'num_left_boundary', 'num_right_boundary',
           'num_dist', 'num_dist_to_boundary',
           'num_geo_mean',
           'connective_length_'),
+    CNNCT: ('me_',),
 }
 
 
@@ -181,8 +183,9 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['num_left_boundary'] = lbound
             feature_vector['num_right_boundary'] = rbound
 
-            if perfect:
-                feature_vector['me_{}'.format('-'.join(tags))] = 1
+            # only for sense experiments
+            feature_vector['me_{}'.format('-'.join(tags))] = 1
+
             # P & N
             for token_indices in t_indices:
                 l_l_index = token_indices[0]
