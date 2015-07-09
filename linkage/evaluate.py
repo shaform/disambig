@@ -91,7 +91,7 @@ _HEADERS = [
         # 让步关系
         'concessive',
         # 解说关系
-        #'explanation',
+        'explanation',
         # 总分关系
         'summary-elaboration',
         # 例证关系
@@ -287,13 +287,19 @@ def print_sense_scores(Ys, Yps, label,
 
 class ProgressCounter(object):
 
-    def __init__(self):
+    def __init__(self, inline=False):
         self.n = 0
+        self.inline = inline
+        if inline:
+            print('processing...', end='', flush=True)
 
     def step(self):
         self.n += 1
         if self.n % 200 == 0:
-            print('{} processed'.format(self.n))
+            if self.inline:
+                print('', self.n, '/', end='', flush=True)
+            else:
+                print('{} processed'.format(self.n))
 
 
 def print_stats(tp, tn, fp, fn, label=None, print_prf=True):

@@ -77,7 +77,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
     X = []
     Xext = []
 
-    counter = evaluate.ProgressCounter()
+    counter = evaluate.ProgressCounter(inline=True)
     correct_count = 0
     for label, tokens in corpus_file.corpus.items():
         counter.step()
@@ -203,6 +203,7 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
                 Y.append(0)
 
             cands.append((label, indices))
+    print()
 
     if select is None:
         X = features.transform_features(X, Xext)

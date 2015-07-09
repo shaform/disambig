@@ -70,7 +70,7 @@ def get_features(detector, corpus_file, vectors, truth,
     total_choices = 0
     total_words = 0
 
-    counter = evaluate.ProgressCounter()
+    counter = evaluate.ProgressCounter(inline=True)
     t_ambig = defaultdict(int)
     for l, tokens in corpus_file.corpus.items():
         counter.step()
@@ -144,6 +144,7 @@ def get_features(detector, corpus_file, vectors, truth,
                     cands.append(cand)
                     Y.append(1 if cand in truth else 0)
 
+    print()
     # statistics
 
     print('\nTotal words: {}\nTotal choices: {}'.format(
