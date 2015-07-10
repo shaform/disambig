@@ -205,8 +205,8 @@ def extract_dep_features(s, dep, pdep):
             # print(item)
             break
 
-    if psubj != subj:
-        s.add('SUBJ_CHANGED')
+    # if psubj != subj:
+    #    s.add('SUBJ_CHANGED')
 
 
 def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
@@ -328,41 +328,41 @@ def check_continuity(labels):
     assert(total_transit == 2 or total_transit == 0)
 
 
-def extract_features(tokens, pos_tokens, arg):
-    cnnct, rtype, stype, c_indices, a_indices = arg
-    tlen = len(tokens)
-
-    tfeatures = [set() for _ in range(tlen)]
-
-    # set labels
-    tlabels = ['PRE'] * tlen
-    for idx in range(a_indices[-1][-1] + 1, tlen):
-        assert(tlabels[idx] == 'PRE')
-        tlabels[idx] = 'END'
-    for indices in a_indices:
-        for idx in indices:
-            assert(tlabels[idx] == 'PRE')
-            tlabels[idx] = 'I'
-        assert(tlabels[idx] == 'I')
-        tlabels[indices[0]] = 'B'
-
-    # set features
-    for s in tfeatures:
-        s.add('CNNCT-' + cnnct)
-
-        s.add('RTYPE-{}'.format(rtype))
-    for lst in c_indices:
-        for idx in lst:
-            tfeatures[idx].add('IS_CNNCT')
-    for i, (s, t, pt) in enumerate(zip(tfeatures, tokens, pos_tokens)):
-        s.add(t.replace('\\', r'\\').replace(':', r'\:'))
-        s.add('POS-{}'.format(pt.split('/')[-1]))
-        if t in _ENDs:
-            s.add('IS_END')
-            if i + 1 < tlen:
-                tfeatures[i + 1].add('PREV_END')
-
-    return tlabels, tfeatures
+# def extract_features(tokens, pos_tokens, arg):
+#    cnnct, rtype, stype, c_indices, a_indices = arg
+#    tlen = len(tokens)
+#
+#    tfeatures = [set() for _ in range(tlen)]
+#
+#    # set labels
+#    tlabels = ['PRE'] * tlen
+#    for idx in range(a_indices[-1][-1] + 1, tlen):
+#        assert(tlabels[idx] == 'PRE')
+#        tlabels[idx] = 'END'
+#    for indices in a_indices:
+#        for idx in indices:
+#            assert(tlabels[idx] == 'PRE')
+#            tlabels[idx] = 'I'
+#        assert(tlabels[idx] == 'I')
+#        tlabels[indices[0]] = 'B'
+#
+#    # set features
+#    for s in tfeatures:
+#        s.add('CNNCT-' + cnnct)
+#
+#        s.add('RTYPE-{}'.format(rtype))
+#    for lst in c_indices:
+#        for idx in lst:
+#            tfeatures[idx].add('IS_CNNCT')
+#    for i, (s, t, pt) in enumerate(zip(tfeatures, tokens, pos_tokens)):
+#        s.add(t.replace('\\', r'\\').replace(':', r'\:'))
+#        s.add('POS-{}'.format(pt.split('/')[-1]))
+#        if t in _ENDs:
+#            s.add('IS_END')
+#            if i + 1 < tlen:
+#                tfeatures[i + 1].add('PREV_END')
+#
+#    return tlabels, tfeatures
 
 
 def add_offset(offsets, start, end, edu_to_index, append=set.add):

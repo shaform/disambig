@@ -52,10 +52,37 @@ class Predictor(object):
 
         return p
 
-CONTEXT = 'CONTEXT'
-
 FILTER_SET = {
-    CONTEXT: ('CONTEXT-',)
+    'CONTEXT': (
+        'CONTEXT-',
+    ),
+    'PATH': (
+        'PATH-',
+    ),
+    'POS': (
+        'TOKEN_POS-',
+    ),
+    'SUBJ': (
+        'HAS_SUBJ',
+    ),
+    'ENDCHAR': (
+        'END_CHAR-',
+    ),
+    'LINK': (
+        'IN_LINKING-',
+    ),
+    'CNNCT': (
+        'CNNCT_NUM-',
+        'CNNCT-',
+    ),
+    'COMP': (
+        'CNNCT_START',
+        'CNNCT_END',
+        'CNNCT_ONLY',
+        'HAS_CONNCT',
+        'BEFORE_CNNCT',
+        'AFTER_CNNCT',
+    ),
 }
 
 for k, v in FILTER_SET.items():

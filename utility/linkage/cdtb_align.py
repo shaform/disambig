@@ -176,6 +176,8 @@ def align_connectives(corpus, cnnct_path, linkage_output):
                 rtype2 = _TP2[tp]
                 stype = _SP[sp]
                 connective = '-'.join(conncts)
+                # maybe use rtype2 instead of stype
+                # as stype is almost unpredictable
                 connective_range[(label, rindices)] = (
                     start, end, detected_indices, connective, rtype, stype)
                 of.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(label,
