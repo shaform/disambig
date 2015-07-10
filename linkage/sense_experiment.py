@@ -55,7 +55,7 @@ def main():
 
     truth = linkage.LinkageFile(args.linkage)
 
-    truth.print_type_stats()
+    # truth.print_type_stats()
 
     feature_tbl = features.load_features_table(
         args.linkage_features, lambda x: tuple(x.split('-')))

@@ -222,4 +222,7 @@ def filter_features(X, r, reverse_select=False):
         for k in list(x):
             m = r.match(k) is None
             if m ^ reverse_select:
-                del x[k]
+                if type(x) is set:
+                    x.remove(k)
+                else:
+                    del x[k]

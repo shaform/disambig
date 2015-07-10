@@ -1,5 +1,6 @@
 """linkage argument experiments"""
 import argparse
+import re
 import subprocess
 
 import numpy as np
@@ -51,6 +52,15 @@ class Predictor(object):
 
         return p
 
+CONTEXT = 'CONTEXT'
+
+FILTER_SET = {
+    CONTEXT: ('CONTEXT-',)
+}
+
+for k, v in FILTER_SET.items():
+    FILTER_SET[k] = re.compile('({})'.format('|'.join(v)))
+
 
 def process_commands():
     parser = argparse.ArgumentParser()
@@ -80,14 +90,21 @@ def process_commands():
     parser.add_argument('--hierarchy_ranges', action='store_true')
     parser.add_argument('--hierarchy_adjust', action='store_true')
     parser.add_argument('--use_baseline', action='store_true')
+    parser.add_argument('--select',
+                        help='only select a feature set',
+                        choices=tuple(FILTER_SET))
+    parser.add_argument('--reverse_select',
+                        help='reverse selection',
+                        action='store_true')
 
     return parser.parse_args()
 
 
-def extract_features(corpus_file, linkings, arguments, test_arguments):
+def extract_features(corpus_file, linkings, arguments, test_arguments,
+                     use_feature=None, reverse_select=False):
     data_set = defaultdict(list)
     test_set = defaultdict(list)
-    counter = evaluate.ProgressCounter()
+    counter = evaluate.ProgressCounter(inline=True)
 
     for l, tokens in corpus_file.corpus.items():
         counter.step()
@@ -103,12 +120,19 @@ def extract_features(corpus_file, linkings, arguments, test_arguments):
             arg[-1] = a_indices
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
                 EDUs, tokens, pos_tokens, parsed, deps, linkings, arg)
+            if use_feature is not None:
+                features.filter_features(tfeatures, FILTER_SET[use_feature],
+                                         reverse_select=reverse_select)
             test_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
         for arg in arguments.arguments(l):
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
                 EDUs, tokens, pos_tokens, parsed, deps, linkings, arg)
+            if use_feature is not None:
+                features.filter_features(tfeatures, FILTER_SET[use_feature],
+                                         reverse_select=reverse_select)
             data_set[l].append((c_indices, cEDU, tlabels, tfeatures))
+    print()
 
     return data_set, test_set
 
@@ -311,11 +335,15 @@ def test(fhelper, train_args, test_args, corpus_file,
          bounded=None,
          keep_boundary=False, hierarchy_ranges=False,
          hierarchy_adjust=False,
-         use_baseline=False):
+         use_baseline=False,
+         use_feature=None,
+         reverse_select=False):
 
     train_args.init_truth(corpus_file)
     data_set, test_set = extract_features(corpus_file,
-                                          linkings, train_args, test_args)
+                                          linkings, train_args, test_args,
+                                          use_feature=use_feature,
+                                          reverse_select=reverse_select)
 
     predictor = Predictor(crf, model_path, train_path, test_path)
 
@@ -353,6 +381,7 @@ def test(fhelper, train_args, test_args, corpus_file,
 
     preds = []
     pred_probs = []
+    wow_count = 0
     for crf_data, ranges, p in zip(test_crf_data, test_crf_ranges, processes):
         p.wait()
         arg_spans, probs = load_predict(p.stdout, ranges,
@@ -361,15 +390,15 @@ def test(fhelper, train_args, test_args, corpus_file,
         preds.append(arg_spans)
         pred_probs.append(probs)
 
-    if not keep_boundary and hierarchy_adjust:
-        for i, crf_data, pds, probs in zip(fhelper.folds(),
-                                           test_crf_data,
-                                           preds,
-                                           pred_probs):
-            handle_hierarchy_adjust(crf_data, pds, probs, i, predictor)
+    # if not keep_boundary and hierarchy_adjust:
+    #    for i, crf_data, pds, probs in zip(fhelper.folds(),
+    #                                       test_crf_data,
+    #                                       preds,
+    #                                       pred_probs):
+    #        handle_hierarchy_adjust(crf_data, pds, probs, i, predictor)
 
-    for arg_spans, crf_data in zip(preds, test_crf_data):
-        arg_spans = rule_based(arg_spans, crf_data, corpus_file)
+    # for arg_spans, crf_data in zip(preds, test_crf_data):
+    #    arg_spans = rule_based(arg_spans, crf_data, corpus_file)
 
     # evaluation
     cv_stats = defaultdict(list)
@@ -468,13 +497,13 @@ def test(fhelper, train_args, test_args, corpus_file,
             cv_stats['iPrec'].append(prec)
             cv_stats['iF1'].append(f1)
 
-    print('Accuracy:', np.mean(cv_stats['Accuracy']))
-    print('Recall:', np.mean(cv_stats['Recall']))
-    print('Prec:', np.mean(cv_stats['Prec']))
-    print('F1:', np.mean(cv_stats['F1']))
-    print('Instance Recall:', np.mean(cv_stats['iRecall']))
-    print('Instance Prec:', np.mean(cv_stats['iPrec']))
-    print('Instance F1:', np.mean(cv_stats['iF1']))
+    print('Accuracy: {:.2%}'.format(np.mean(cv_stats['Accuracy'])))
+    print('Recall: {:.2%}'.format(np.mean(cv_stats['Recall'])))
+    print('Prec: {:.2%}'.format(np.mean(cv_stats['Prec'])))
+    print('F1: {:.2%}'.format(np.mean(cv_stats['F1'])))
+    print('Instance Recall: {:.2%}'.format(np.mean(cv_stats['iRecall'])))
+    print('Instance Prec: {:.2%}'.format(np.mean(cv_stats['iPrec'])))
+    print('Instance F1: {:.2%}'.format(np.mean(cv_stats['iF1'])))
     print('Totally {} arguments for all'.format(sum(cv_stats['Total'])))
     print('Totally {} instances for all'.format(sum(cv_stats['iTotal'])))
     print('Totally {} arguments predicted for all'.format(
@@ -623,7 +652,9 @@ def main():
          args.log,
          args.bounded,
          keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust,
-         use_baseline=args.use_baseline
+         use_baseline=args.use_baseline,
+         use_feature=args.select,
+         reverse_select=args.reverse_select
          )
 
 

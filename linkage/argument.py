@@ -90,6 +90,8 @@ def correct_labels(labels):
             if is_argument_label(l):
                 labels[i] = _BEGIN
                 stage = 1
+            else:
+                labels[i] = _BEFORE
         elif stage == 1:
             if not is_argument_label(l):
                 labels[i] = _AFTER
@@ -224,8 +226,8 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
 
     # set features
     for s in tfeatures:
-        s.add('CNNCT-' + cnnct)
-        s.add('RTYPE-{}'.format(rtype))
+        s.add('CNNCT-{}'.format(cnnct))
+        # s.add('RTYPE-{}'.format(rtype))
         # s.add('STYPE-{}'.format(stype))
         s.add('CNNCT_NUM-{}'.format(cnnct.count('-') + 1))
 
@@ -258,6 +260,7 @@ def extract_EDU_features(EDUs, tokens, pos_tokens, parsed, deps, linkings, arg):
         for indices, cnnct_comp in zip(c_indices, cnncts):
             if span[0] <= indices[0] < span[1]:
                 s.add('HAS_CONNCT')
+                s.add('HAS_CONNCT-{}'.format(cnnct_comp))
                 if cnnct_comp in linkings:
                     for t in linkings[cnnct_comp]:
                         s.add('IN_LINKING-{}'.format(t))
@@ -322,7 +325,7 @@ def check_continuity(labels):
         last = l
     if is_argument_label(last):
         total_transit += 1
-    assert(total_transit == 2)
+    assert(total_transit == 2 or total_transit == 0)
 
 
 def extract_features(tokens, pos_tokens, arg):
