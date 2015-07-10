@@ -123,6 +123,8 @@ def process_commands():
     parser.add_argument('--reverse_select',
                         help='reverse selection',
                         action='store_true')
+    parser.add_argument('--rstats',
+                        action='store_true')
 
     return parser.parse_args()
 
@@ -364,7 +366,8 @@ def test(fhelper, train_args, test_args, corpus_file,
          hierarchy_adjust=False,
          use_baseline=False,
          use_feature=None,
-         reverse_select=False):
+         reverse_select=False,
+         rstats=False):
 
     train_args.init_truth(corpus_file)
     data_set, test_set = extract_features(corpus_file,
@@ -430,6 +433,8 @@ def test(fhelper, train_args, test_args, corpus_file,
     # evaluation
     cv_stats = defaultdict(list)
     log_stats = defaultdict(int)
+    if rstats:
+        r_stats = defaultdict(int)
     with open(log_path, 'w') as log_out:
         for i, crf_data, pds in zip(fhelper.folds(), test_crf_data, preds):
             correct = 0
@@ -493,6 +498,85 @@ def test(fhelper, train_args, test_args, corpus_file,
                 elif len(arg_span) > 0:
                     i_fp += 1
 
+                if rstats and len(s) > 0:
+
+                    def count_rstats(item, is_correct):
+                        r_stats[item] += 1
+                        if is_correct:
+                            r_stats[item + '-correct'] += 1
+
+                    # count connective length
+                    count_rstats('clen-{}'.format(len(cindices)),
+                                 s == arg_span
+                                 )
+                    # count argument length
+                    count_rstats('alen-{}'.format(len(s)),
+                                 s == arg_span
+                                 )
+
+                    # count front
+                    count_rstats('front',
+                                 min(pd_boundaries) == min(truth_boundaries)
+                                 )
+                    # count back
+                    count_rstats('back',
+                                 max(pd_boundaries) == max(truth_boundaries)
+                                 )
+
+                    # count middle
+                    middle_truth = set(truth_boundaries)
+                    middle_truth.remove(min(truth_boundaries))
+                    middle_truth.remove(max(truth_boundaries))
+
+                    middle_pd = set(pd_boundaries)
+                    middle_pd.remove(min(pd_boundaries))
+                    middle_pd.remove(max(pd_boundaries))
+
+                    count_rstats('middle',
+                                 middle_pd == middle_truth
+                                 )
+
+                    # count over/underpredict
+                    count_rstats('over',
+                                 len(s) < len(arg_span)
+                                 )
+                    count_rstats('under',
+                                 len(s) > len(arg_span)
+                                 )
+
+                    # count match or not
+                    if len(s) == len(cindices):
+                        count_rstats('match',
+                                     s == arg_span
+                                     )
+                    else:
+                        count_rstats('notmatch',
+                                     s == arg_span
+                                     )
+
+                    # types  [ <]>
+                    # types  [ <> ]
+                    # types  < [] >
+                    if s != arg_span:
+                        tl, tr = min(truth_boundaries), max(truth_boundaries)
+                        pl, pr = min(pd_boundaries), max(pd_boundaries)
+                        if pl == tl and pr == tr:
+                            count_rstats('exact',
+                                         False
+                                         )
+                        elif pl >= tl and pr <= tr:
+                            count_rstats('toosmall',
+                                         False
+                                         )
+                        elif pl <= tl and pr >= tr:
+                            count_rstats('toobig',
+                                         False
+                                         )
+                        else:
+                            count_rstats('cross',
+                                         False
+                                         )
+
             for l in fhelper.test_set(i):
                 d = train_args.edu_truth[l]
                 for s in d.values():
@@ -524,13 +608,20 @@ def test(fhelper, train_args, test_args, corpus_file,
             cv_stats['iPrec'].append(prec)
             cv_stats['iF1'].append(f1)
 
-    print('Accuracy: {:.2%}'.format(np.mean(cv_stats['Accuracy'])))
-    print('Recall: {:.2%}'.format(np.mean(cv_stats['Recall'])))
-    print('Prec: {:.2%}'.format(np.mean(cv_stats['Prec'])))
-    print('F1: {:.2%}'.format(np.mean(cv_stats['F1'])))
-    print('Instance Recall: {:.2%}'.format(np.mean(cv_stats['iRecall'])))
-    print('Instance Prec: {:.2%}'.format(np.mean(cv_stats['iPrec'])))
-    print('Instance F1: {:.2%}'.format(np.mean(cv_stats['iF1'])))
+    print('prec\trecall\tF1')
+    print('{:.2%}\t{:.2%}\t{:.2%}'.format(
+        np.mean(cv_stats['Prec']),
+        np.mean(cv_stats['Recall']),
+        np.mean(cv_stats['F1']),
+    ))
+    print('Instance')
+    print('prec\trecall\tF1\tAccuracy')
+    print('{:.2%}\t{:.2%}\t{:.2%}\t{:.2%}'.format(
+        np.mean(cv_stats['iPrec']),
+        np.mean(cv_stats['iRecall']),
+        np.mean(cv_stats['iF1']),
+        np.mean(cv_stats['Accuracy'])
+    ))
     print('Totally {} arguments for all'.format(sum(cv_stats['Total'])))
     print('Totally {} instances for all'.format(sum(cv_stats['iTotal'])))
     print('Totally {} arguments predicted for all'.format(
@@ -539,6 +630,9 @@ def test(fhelper, train_args, test_args, corpus_file,
         sum(cv_stats['iPropose'])))
     print('log stats:')
     # evaluate.print_counts(log_stats)
+
+    if rstats:
+        evaluate.print_counts(r_stats)
 
 
 def pop_max(items, probs):
@@ -681,7 +775,8 @@ def main():
          keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust,
          use_baseline=args.use_baseline,
          use_feature=args.select,
-         reverse_select=args.reverse_select
+         reverse_select=args.reverse_select,
+         rstats=args.rstats
          )
 
 
