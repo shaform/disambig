@@ -564,18 +564,28 @@ def test(fhelper, train_args, test_args, corpus_file,
                             count_rstats('exact',
                                          False
                                          )
-                        elif pl >= tl and pr <= tr:
-                            count_rstats('toosmall',
-                                         False
-                                         )
-                        elif pl <= tl and pr >= tr:
-                            count_rstats('toobig',
-                                         False
-                                         )
                         else:
-                            count_rstats('cross',
-                                         False
-                                         )
+                            if pl >= tl and pr <= tr:
+                                count_rstats('toosmall',
+                                             False
+                                             )
+                            elif pl <= tl and pr >= tr:
+                                count_rstats('toobig',
+                                             False
+                                             )
+                            else:
+                                count_rstats('cross',
+                                             False
+                                             )
+
+                            if pl == tl or pr == tr:
+                                count_rstats('at least one',
+                                             False
+                                             )
+                            else:
+                                count_rstats('both incorrect',
+                                             False
+                                             )
 
             for l in fhelper.test_set(i):
                 d = train_args.edu_truth[l]
