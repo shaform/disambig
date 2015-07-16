@@ -46,6 +46,11 @@ def process_commands():
                         help='use svm to check classification accuracy')
     parser.add_argument('--threshold', type=float, default=0.6)
     parser.add_argument('--arg_output')
+    parser.add_argument('--greedy', action='store_true')
+    parser.add_argument('--rank', nargs='*', default=[],
+                        choices=('length', 'score'))
+    parser.add_argument('--predict_sense', action='store_true')
+    parser.add_argument('--predict_wstats', action='store_true')
 
     return parser.parse_args()
 
@@ -132,7 +137,7 @@ def detect_wrong(indices, visited, crossed):
                 all_indices.add(idx)
 
     # correct for these indices
-    visited |= all_indices
+    visited.update(all_indices)
 
     return False
 
@@ -286,7 +291,7 @@ def train_sense_predictors(num_of_folds, fhelper, feature_tbl, truth):
 
 class Ranker(object):
 
-    def __init__(self, markers, *, probs=None, label, method, truth):
+    def __init__(self, markers, *, probs=None, label, method, truth, rank):
         self.markers = markers
         self.probs = probs
         self.label = label
@@ -308,8 +313,49 @@ class Ranker(object):
             self.ambig_comp = dict(self.ambig_comp)
             self.ambig_dict = dict(self.ambig_dict)
 
+            if rank is None or len(rank) == 0:
+                self.k = lambda x: (
+                    self.min_ambig[x],
+                    x)
+            elif rank == ['length', 'score']:
+                self.k = lambda x: (
+                    self.min_ambig[x],
+                    -len(x),
+                    -self.probs[(label, x)],
+                    x)
+            elif rank == ['score']:
+                self.k = lambda x: (
+                    self.min_ambig[x],
+                    -self.probs[(label, x)],
+                    x)
+            elif rank == ['length']:
+                self.k = lambda x: (
+                    self.min_ambig[x],
+                    -len(x),
+                    x)
+            else:
+                assert(False)
+
         elif method == 'length-prob':
             assert(probs is not None)
+            if rank is None or len(rank) == 0:
+                self.k = lambda x: (
+                    x,)
+            elif rank == ['length', 'score']:
+                self.k = lambda x: (
+                    -len(x),
+                    -self.probs[(label, x)],
+                    x)
+            elif rank == ['score']:
+                self.k = lambda x: (
+                    -self.probs[(label, x)],
+                    x)
+            elif rank == ['length']:
+                self.k = lambda x: (
+                    -len(x),
+                    x)
+            else:
+                assert(False)
         else:
             assert(False)
 
@@ -345,21 +391,15 @@ class Ranker(object):
 
     def sort(self):
         label = self.label
+
         if self.method == 'length-prob':
             self.markers.sort(
-                key=lambda x: (
-                    -len(x),
-                    -self.probs[(label, x)],
-                    x),
+                key=self.k,
                 reverse=True
             )
         elif self.method == 'greedy':
             self.markers.sort(
-                key=lambda x: (
-                    self.min_ambig[x],
-                    -len(x),
-                    -self.probs[(label, x)],
-                    x),
+                key=self.k,
                 reverse=True
             )
 
@@ -398,11 +438,13 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
                      predict_sstats=True,
                      predict_pstats=False,
                      predict_wstats=False,
-                     count_path):
+                     count_path,
+                     rank=None,
+                     greedy=False):
     word_count = evaluate.WordCount(count_path)
-    stats = evaluate.FoldStats(show_fold=True)
+    stats = evaluate.FoldStats(show_fold=True, label='linkage stats')
     pstats = evaluate.FoldStats(show_fold=False)
-    wstats = evaluate.FoldStats(show_fold=False)
+    wstats = evaluate.FoldStats(show_fold=True, label='word stats')
     rejected_ov = defaultdict(int)
     rejected_s = defaultdict(int)
     pType = {}
@@ -497,10 +539,15 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
             else:
                 pType[label] = (features.num_of_sentences(tokens), 'unique')
 
+            if greedy:
+                rmethod = 'greedy'
+            else:
+                rmethod = 'length-prob'
             ranker = Ranker(markers,
-                            probs=linkage_probs, method='length-prob',
+                            probs=linkage_probs, method=rmethod,
                             label=label,
-                            truth=truth[label])
+                            truth=truth[label],
+                            rank=rank)
 
             visited = set()
             crossed = set()
@@ -687,15 +734,18 @@ def main():
         words=words,
         perfect=args.perfect,
         count_path=args.word_count,
-        arg_output=args.arg_output)
+        arg_output=args.arg_output,
+        greedy=args.greedy,
+        rank=args.rank,
+        predict_sstats=args.predict_sense,
+        predict_wstats=args.predict_wstats,
+    )
 
     if not args.perfect:
         word_probs, word_truth = load_word_probs(args.word_probs)
-        if args.perfect:
-            cut = lambda x, _: any((x[0], w) not in words for w in x[1])
-        else:
-            cut = lambda x, _: any(
-                word_probs[(x[0], w)] < args.threshold for w in x[1])  # or linkage_class[x] < args.threshold
+        # cut by word probs
+        cut = lambda x, _: any(
+            word_probs[(x[0], w)] < args.threshold for w in x[1])  # or linkage_class[x] < args.threshold
         print('\n===== pipeline model =====')
         cross_validation(
             corpus_file,
@@ -710,24 +760,12 @@ def main():
             cut=cut,
             words=words,
             count_path=args.word_count,
-            perfect=args.perfect
+            perfect=args.perfect,
+            greedy=args.greedy,
+            rank=args.rank,
+            predict_sstats=args.predict_sense,
+            predict_wstats=args.predict_wstats,
         )
-
-    '''
-    baseline_probs = compute_ranking_probs(linkage_probs, key=lambda x: 1)
-    word_probs, word_truth = load_word_probs(args.word_probs)
-
-    print('baseline model')
-    cross_validation(
-        corpus_file,
-        fhelper,
-        truth,
-        detector,
-        linkage_counts,
-        baseline_probs,
-        word_ambig,
-        cut=lambda x, y: any(word_probs[(x[0], w)] < 0.5 for w in x[1]))
-    '''
 
 if __name__ == '__main__':
     main()

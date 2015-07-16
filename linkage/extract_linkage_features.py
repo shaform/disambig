@@ -49,6 +49,8 @@ def process_commands():
     parser.add_argument('--reverse_select',
                         help='reverse selection',
                         action='store_true')
+    parser.add_argument('--select_cnnct',
+                        action='store_true')
 
     return parser.parse_args()
 
@@ -70,7 +72,8 @@ for k, v in FILTER_SET.items():
 
 
 def get_linkage_features(corpus_file, detector, vectors, truth, *,
-                         select=None, perfect=False, reverse_select=False):
+                         select=None, perfect=False, reverse_select=False,
+                         select_cnnct=False):
     print('get linkage features')
     cands = []
     Y = []
@@ -184,7 +187,8 @@ def get_linkage_features(corpus_file, detector, vectors, truth, *,
             feature_vector['num_right_boundary'] = rbound
 
             # only for sense experiments
-            feature_vector['me_{}'.format('-'.join(tags))] = 1
+            if select_cnnct:
+                feature_vector['me_{}'.format('-'.join(tags))] = 1
 
             # P & N
             for token_indices in t_indices:
@@ -279,7 +283,8 @@ def main():
                                            truth,
                                            select=args.select,
                                            reverse_select=args.reverse_select,
-                                           perfect=True)
+                                           perfect=True,
+                                           select_cnnct=args.select_cnnct)
 
         output_file(args.perfect_output, cands, Y, X)
 

@@ -41,6 +41,8 @@ def process_commands():
                         help='output classification file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
+    parser.add_argument('--classifier', default='LR',
+                        choices=('SVM', 'DT', 'NB', 'LR',))
 
     return parser.parse_args()
 
@@ -59,23 +61,18 @@ class LogisticRegressor():
 
 def predict(args):
     i, X, Y, Xt = args
-    lr = SVR(C=1.0, epsilon=0.2)
-    lr = DecisionTreeRegressor()
     lr = LogisticRegressor()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage probability for fold', i, '...')
     return Yt
 
+global_classifier = {'key': None}
+
 
 def classify(args):
     i, X, Y, Xt = args
-    #lr = RandomForestClassifier()
-    #lr = LinearSVC()
-    #lr = SVC()
-    #lr = GaussianNB()
-    #lr = DecisionTreeClassifier()
-    lr = LogisticRegressor()
+    lr = global_classifier['key']()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training linkage classification for fold', i, '...')
@@ -102,8 +99,8 @@ def train_linkage_probs(fhelper, feature_tbl, linkage_counts,
     probs = {}
     classes = {}
 
-    stats = evaluate.FoldStats()
-    cstats = evaluate.FoldStats()
+    stats = evaluate.FoldStats(show_fold=True, label='linkage stats')
+    cstats = evaluate.FoldStats(show_fold=True, label='word stats')
 
     # extract training data
     num_of_folds = len(fhelper.folds())
@@ -208,6 +205,21 @@ def main():
     train_prob = args.output is not None
     train_classify = args.output_classify is not None
     assert(train_prob or train_classify)
+
+    if args.classifier == 'SVM':
+        global_classifier['key'] = SVC
+    elif args.classifier == 'DT':
+        global_classifier['key'] = DecisionTreeClassifier
+    elif args.classifier == 'RF':
+        global_classifier['key'] = RandomForestClassifier
+    elif args.classifier == 'NB':
+        global_classifier['key'] = GaussianNB
+    elif args.classifier == 'LSVM':
+        global_classifier['key'] = LinearSVC
+    elif args.classifier == 'LR':
+        global_classifier['key'] = LogisticRegressor
+    else:
+        assert(False)
 
     fhelper = corpus.FoldsHelper(args.folds)
     feature_tbl = features.load_features_table(

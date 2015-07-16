@@ -359,7 +359,7 @@ class ArgStats(object):
 
 class FoldStats(object):
 
-    def __init__(self, threshold=0.5, show_fold=False):
+    def __init__(self, threshold=0.5, show_fold=False, label=None):
         self.stats = defaultdict(int)
         self.cv_stats = defaultdict(list)
         self.tp_labels = set()
@@ -367,6 +367,7 @@ class FoldStats(object):
         self.fn_labels = set()
         self.threshold = threshold
         self.show_fold = show_fold
+        self.label = label
 
     def compute_fold(self, labels, Yp, Y, truth_count=None, total_count=None):
         f_stats = defaultdict(int)
@@ -396,6 +397,8 @@ class FoldStats(object):
             tn = total_count - (tp + fp + fn)
 
         if self.show_fold:
+            if self.label is not None:
+                print('\n{}'.format(self.label))
             print_stats(tp, tn, fp, fn)
 
         self.stats['tp'] += tp
