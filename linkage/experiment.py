@@ -717,7 +717,6 @@ def main():
     if args.perfect:
         cut = lambda x, _: any((x[0], w) not in words for w in x[1])
     else:
-        # cut = lambda x, _: linkage_probs[x] < args.threshold
         cut = lambda x, _: linkage_class[x] < args.threshold
 
     print('===== ranking model =====')

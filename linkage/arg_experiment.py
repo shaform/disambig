@@ -624,6 +624,9 @@ def test(fhelper, train_args, test_args, corpus_file,
         np.mean(cv_stats['Recall']),
         np.mean(cv_stats['F1']),
     ))
+    print('Fold Prec', cv_stats['Prec'])
+    print('Fold Recall', cv_stats['Recall'])
+    print('Fold F1', cv_stats['F1'])
     print('Instance')
     print('prec\trecall\tF1\tAccuracy')
     print('{:.2%}\t{:.2%}\t{:.2%}\t{:.2%}'.format(
@@ -632,6 +635,10 @@ def test(fhelper, train_args, test_args, corpus_file,
         np.mean(cv_stats['iF1']),
         np.mean(cv_stats['Accuracy'])
     ))
+    print('Fold Prec', cv_stats['iPrec'])
+    print('Fold Recall', cv_stats['iRecall'])
+    print('Fold F1', cv_stats['iF1'])
+    print('Fold Accuracy', cv_stats['Accuracy'])
     print('Totally {} arguments for all'.format(sum(cv_stats['Total'])))
     print('Totally {} instances for all'.format(sum(cv_stats['iTotal'])))
     print('Totally {} arguments predicted for all'.format(

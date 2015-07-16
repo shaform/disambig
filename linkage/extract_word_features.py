@@ -147,30 +147,30 @@ def get_features(detector, corpus_file, vectors, truth,
     print()
     # statistics
 
-    print('\nTotal words: {}\nTotal choices: {}'.format(
-        total_words, total_choices))
+    # print('\nTotal words: {}\nTotal choices: {}'.format(
+    #    total_words, total_choices))
 
-    print('\nChoice distribution:')
-    d = defaultdict(int)
-    for x in X:
-        d[x['num_of_choices']] += 1
-    for n, v in sorted(d.items()):
-        print('{}:\t{}'.format(n, v))
+    #print('\nChoice distribution:')
+    #d = defaultdict(int)
+    # for x in X:
+    #    d[x['num_of_choices']] += 1
+    # for n, v in sorted(d.items()):
+    #    print('{}:\t{}'.format(n, v))
 
-    print('\nChoice distribution in truth:')
-    d = defaultdict(int)
-    for x, y in zip(X, Y):
-        if y == 1:
-            d[x['num_of_choices']] += 1
-    for n, v in sorted(d.items()):
-        print('{}:\t{}'.format(n, v))
+    #print('\nChoice distribution in truth:')
+    #d = defaultdict(int)
+    # for x, y in zip(X, Y):
+    #    if y == 1:
+    #        d[x['num_of_choices']] += 1
+    # for n, v in sorted(d.items()):
+    #    print('{}:\t{}'.format(n, v))
 
-    print('\nChoice distribution in truth by truth:')
-    d = defaultdict(int)
-    for v in t_ambig.values():
-        d[v] += 1
-    for n, v in sorted(d.items()):
-        print('{}:\t{}'.format(n, v))
+    #print('\nChoice distribution in truth by truth:')
+    #d = defaultdict(int)
+    # for v in t_ambig.values():
+    #    d[v] += 1
+    # for n, v in sorted(d.items()):
+    #    print('{}:\t{}'.format(n, v))
 
     if ambig_path:
         print('\noutput file to {}'.format(ambig_path))
