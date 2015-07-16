@@ -30,8 +30,12 @@ def process_commands():
                         help='output file')
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
+    parser.add_argument('--classifier', default='LR',
+                        choices=('SVM', 'DT', 'NB', 'LR', 'RF', 'LSVM'))
 
     return parser.parse_args()
+
+global_classifier = {'key': None}
 
 
 class LogisticRegressor():
@@ -48,13 +52,7 @@ class LogisticRegressor():
 
 def predict(args):
     i, X, Y, Xt = args
-    lr = RandomForestClassifier()
-    lr = SVC()
-    lr = LinearSVC()
-    lr = GaussianNB()
-    lr = DecisionTreeClassifier()
-    lr = LogisticRegression()
-    lr = LogisticRegressor()
+    lr = global_classifier['key']()
     lr.fit(X, Y)
     Yt = lr.predict(Xt)
     print('completed training word probability for fold', i, '...')
@@ -73,7 +71,7 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, count_path,
     if check_accuracy and count_path is not None:
         word_count = evaluate.WordCount(count_path)
 
-    stats = evaluate.FoldStats()
+    stats = evaluate.FoldStats(show_fold=True, label='word stats')
 
     # extract training data
     num_of_folds = len(fhelper.folds())
@@ -130,8 +128,9 @@ def train_word_probs(fhelper, feature_tbl, ambig_path, count_path,
 
         stats.print_total(truth_count=truth_count)
 
-        if word_ambig is not None:
-            stats.print_distribution(word_ambig)
+        # don't print these for now
+        # if word_ambig is not None:
+        #    stats.print_distribution(word_ambig)
 
     print('word trained:', len(word_probs))
     return word_probs
@@ -145,6 +144,21 @@ def output_file(path, word_probs):
 
 def main():
     args = process_commands()
+
+    if args.classifier == 'SVM':
+        global_classifier['key'] = SVC
+    elif args.classifier == 'DT':
+        global_classifier['key'] = DecisionTreeClassifier
+    elif args.classifier == 'RF':
+        global_classifier['key'] = RandomForestClassifier
+    elif args.classifier == 'NB':
+        global_classifier['key'] = GaussianNB
+    elif args.classifier == 'LSVM':
+        global_classifier['key'] = LinearSVC
+    elif args.classifier == 'LR':
+        global_classifier['key'] = LogisticRegressor
+    else:
+        assert(False)
 
     # loading data
 

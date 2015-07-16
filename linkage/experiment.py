@@ -647,11 +647,12 @@ def cross_validation(corpus_file, fhelper, feature_tbl, truth, detector,
     print('\nLinkage stats:')
     stats.print_total(truth_count=linkage_counts)
     print('total detected = {}'.format(total_detected))
-    stats.print_distribution(
-        word_ambig,
-        function=lambda x: {(l, w) for (l, ws) in x for w in ws})
-    stats.count_by(label='length')
-    print('rejected overlapped:', rejected_ov, 'rejected scores:', rejected_s)
+    # do not print these for now
+    # stats.print_distribution(
+    #    word_ambig,
+    #    function=lambda x: {(l, w) for (l, ws) in x for w in ws})
+    # stats.count_by(label='length')
+    # print('rejected overlapped:', rejected_ov, 'rejected scores:', rejected_s)
 
     if predict_pstats:
         print('\nParagraph stats:')

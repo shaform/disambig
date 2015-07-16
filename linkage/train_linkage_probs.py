@@ -42,7 +42,7 @@ def process_commands():
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
     parser.add_argument('--classifier', default='LR',
-                        choices=('SVM', 'DT', 'NB', 'LR',))
+                        choices=('SVM', 'DT', 'NB', 'LR', 'RF', 'LSVM'))
 
     return parser.parse_args()
 
