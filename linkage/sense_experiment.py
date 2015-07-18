@@ -155,7 +155,8 @@ def main():
     print('\n== word stats ==')
 
     evaluate.print_sense_scores(wYs, wYps, 'Overall', print_accuracy=True)
-    evaluate.print_sense_scores2(wY2s, wY2ps, 'Overall for 2nd-level')
+    evaluate.print_sense_scores(
+        wY2s, wY2ps, 'Overall for 2nd-level', print_accuracy=True)
 
 if __name__ == '__main__':
     main()

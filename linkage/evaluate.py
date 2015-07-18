@@ -104,8 +104,9 @@ _HEADERS = [
 ]
 
 
-def compute_cv_sense_scores(Ys, Yps, labels=None):
+def compute_cv_sense_scores(Ys, Yps, labels=None, non_dis=None):
     total_scores = []
+    raw_scores = []
     for Y, Yp in zip(Ys, Yps):
         # get list of p, r, f, each list contains score for each class
         scores = list(metrics.precision_recall_fscore_support(
@@ -115,8 +116,14 @@ def compute_cv_sense_scores(Ys, Yps, labels=None):
         # convert to list
         scores = [list(ss) for ss in scores]
         # convert to list of (p, r, f)
+        if non_dis is not None:
+            assert(non_dis + 1 == len(scores[0]))
+            raw_score = [np.mean(ss[:-1]) for ss in scores]
+        else:
+            raw_score = [np.mean(ss) for ss in scores]
         scores = list(list(ss) for ss in zip(*scores))
         total_scores.append(scores)
+        raw_scores.append(raw_score)
 
     total_scores = [list(ss) for ss in list(np.mean(total_scores, axis=0))]
 
@@ -124,7 +131,7 @@ def compute_cv_sense_scores(Ys, Yps, labels=None):
     for scores in total_scores:
         scores.append(0)
 
-    return total_scores
+    return total_scores, raw_scores
 
 
 def compute_indomain_micro(Y, Yp, non_dis):
@@ -235,7 +242,8 @@ def print_sense_scores(Ys, Yps, label,
 
     micro_p, micro_r, micro_f = compute_cv_average(Ys, Yps, 'micro')
 
-    scores = compute_cv_sense_scores(Ys, Yps, labels=labels)
+    scores, raw_scores = compute_cv_sense_scores(Ys, Yps, labels=labels,
+                                                 non_dis=non_dis)
     Y = list(np.concatenate(Ys, axis=0))
     Yp = list(np.concatenate(Yps, axis=0))
 
@@ -283,6 +291,8 @@ def print_sense_scores(Ys, Yps, label,
         if len(score) > 3:
             score_line += '\t{}'.format(score[3])
         print('{}\t{}'.format(header, score_line))
+    print('\nraw scores')
+    print(raw_scores)
 
 
 class ProgressCounter(object):

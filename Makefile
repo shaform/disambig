@@ -382,29 +382,45 @@ l_long_word_experiments:
 
 
 l_long_sense_experiments:
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE)
+	echo "\n\nperfect sense experiments\n\n"
+	echo "\n\nPN\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select PN --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select PN
+	echo "\n\nPOS\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select POS --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select POS
+	echo "\n\nNUM\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select NUM --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select NUM
+	echo "\n\nSKIP\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select GLOVE --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select GLOVE
+	echo "\n\nCNNCT\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select CNNCT --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select CNNCT
+	echo "\n\n-PN\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select PN --reverse_select --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select PN --reverse_select
+	echo "\n\n-POS\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select POS --reverse_select --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select POS --reverse_select
+	echo "\n\n-NUM\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select NUM --reverse_select --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select NUM --reverse_select
+	echo "\n\n-SKIP\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select GLOVE --reverse_select --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select GLOVE --reverse_select
+	echo "\n\n-CNNCT\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select CNNCT --reverse_select --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select CNNCT --reverse_select
+	echo "\n\nAll\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select_cnnct
 	python3 $(DISAMBIG_PRG)/linkage/sense_experiment.py --linkage_features $(LLINKAGE_PFEATURE_FILE) --linkage $(LINKAGE_FILE) --word_features $(LWORD_PFEATURE_FILE) 
-	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select NUM --reverse_select
+	echo "\n\nfinal sense experiments\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE)
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --output_classify $(LLINKAGE_CLASS_FILE) --output $(LLINKAGE_PROB_FILE)
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --perfect_output $(LLINKAGE_PFEATURE_FILE) --select NUM --reverse_select --select_cnnct --output $(LLINKAGE_PROB_FILE)
+	python3 $(DISAMBIG_PRG)/linkage/experiment.py --word_count $(LCOUNT_FILE) --connective $(LCNNCT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --word_probs $(LWORD_PROB_FILE) --linkage $(LINKAGE_FILE) --linkage_class $(LLINKAGE_CLASS_FILE) --linkage_probs $(LLINKAGE_CLASS_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --arg_output $(ARGUMENT_PREDICT_FILE) --check_accuracy --threshold 0.5 --predict_wstats --predict_sense --rank length score
 
 l_long_arg_experiments:
 	echo "\n\nperfect arg experiments\n\n"
