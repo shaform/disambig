@@ -1,27 +1,23 @@
 GLOVE = $(DISAMBIG_TOOL)/glove
 WORD2VEC = $(DISAMBIG_TOOL)/word2vec
 NLPPARSER = $(DISAMBIG_TOOL)/stanford-parser-full
-LIBSVM_TRAIN = $(DISAMBIG_TOOL)/liblinear/train
-LIBSVM_SCALE = $(DISAMBIG_TOOL)/libsvm/train-scale
 CRFSUITE = $(DISAMBIG_TOOL)/crfsuite/frontend/crfsuite
 TMP = /tmp
 VTMP = /var/tmp
 
 default:
-	echo NO DEFAULT
+	@echo ===========================================================
+	@echo project program: $(DISAMBIG_PRG)
+	@echo project data: $(DISAMBIG_DATA)
+	@echo project big data: $(DISAMBIG_BIG_DATA)
+	@echo project tools: $(DISAMBIG_TOOL)
+	@echo ===========================================================
 
 ## -- data preprocessing -- ##
 
 CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.no_cnnct.txt
-CLUE_CORPUS_NP = $(DISAMBIG_BIG_DATA)/raw/NoPOSuniqClueWeb4300W.txt
-CLUE_CORPUS_CNNCT = $(DISAMBIG_BIG_DATA)/raw/uniqClueWeb4300W.txt
-LABELED_CLUE_CORPUS = $(DISAMBIG_BIG_DATA)/connective/4300W.labeled.txt
-CNNCT_CORPUS = $(DISAMBIG_BIG_DATA)/connective/corpus.txt
-CLUE_SENT_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.sent.vectors.txt
-CLUE_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.word.vectors.txt
 CLUE_SKIP_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.skip.word.vectors.txt
 CLUE_CBOW_WORD_VECTOR = $(DISAMBIG_BIG_DATA)/connective/4300W.cbow.word.vectors.txt
-CLUE_SKIP_NP_VECTOR = $(DISAMBIG_DATA)/word2vec/NoPOS.4300W.vector
 
 CDTB_RAW_GB_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus
 CDTB_RAW_DIR = $(DISAMBIG_BIG_DATA)/raw/corpus-utf8
@@ -35,15 +31,9 @@ GVOCAB_FILE = $(TMP)/vocab.txt
 GCC_FILE = $(TMP)/cc.txt
 GCCS_FILE = $(TMP)/ccs.txt
 GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.txt
-#GGLOVE_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/sm.vectors.txt
-GGLOVE_NP_VECTOR_FILE = $(DISAMBIG_BIG_DATA)/glove/4300W.vectors.no_pos.txt
-
-NTU_CNNCT = $(DISAMBIG_DATA)/connective/ntu_connective.txt
 
 LVECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_vectors.txt
-# LVECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_sm_vectors.txt
 LSKIP_FILE = $(DISAMBIG_DATA)/linkage/cdtb_skip_vectors.txt
-LSKIP_NP_FILE = $(DISAMBIG_DATA)/linkage/cdtb_skip_np_vectors.txt
 LCBOW_FILE = $(DISAMBIG_DATA)/linkage/cdtb_cbow_vectors.txt
 
 # extract clueweb
@@ -70,50 +60,17 @@ d_glove:
 	$(GLOVE)/glove -save-file $(TMP)/glove.vectors -threads 24 -input-file $(GCCS_FILE) -iter 15 -x-max 10 -vector-size 400 -binary 0 -vocab-file $(GVOCAB_FILE) -verbose 2 
 	mv $(TMP)/glove.vectors.txt $(GGLOVE_VECTOR_FILE)
 
-d_np_glove_prep:
-	$(GLOVE)/vocab_count -min-count 5 -verbose 2 < $(CLUE_CORPUS_NP) > $(GVOCAB_FILE).np
-	$(GLOVE)/cooccur -memory 20 -vocab-file $(GVOCAB_FILE).np -verbose 2 -window-size 15 < $(CLUE_CORPUS_NP) > $(GCC_FILE).np
-	$(GLOVE)/shuffle -memory 20 -verbose 2 < $(GCC_FILE).np > $(GCCS_FILE).np
-
-# create glove
-d_np_glove:
-	$(GLOVE)/glove -save-file $(TMP)/glove.np.vectors -threads 24 -input-file $(GCCS_FILE).np -iter 15 -x-max 10 -vector-size 400 -binary 0 -vocab-file $(GVOCAB_FILE).np -verbose 2 
-	mv $(TMP)/glove.np.vectors.txt $(GGLOVE_NP_VECTOR_FILE)
-
 # convert cdtb to utf-8
 l_convert_cdtb_to_utf8:
 	python3 $(DISAMBIG_PRG)/utility/common/gb-to-utf8.py --input $(DISAMBIG_BIG_DATA)/raw/corpus/ --output $(DISAMBIG_BIG_DATA)/raw/corpus-utf8/
 
-c_extract_ntu_connectives:
-	python3 $(DISAMBIG_PRG)/utility/connective/select.py --corpus $(CLUE_CORPUS_CNNCT) --pairs $(DISAMBIG_BIG_DATA)/raw/sqldump/intra_connectives.txt --output $(NTU_CNNCT)
-
-# label sentences for connective experiments
-c_process_corpus:
-	python3 $(DISAMBIG_PRG)/utility/connective/filter.py --corpus $(CLUE_CORPUS_CNNCT) --cnnct $(NTU_CNNCT) --output $(TMP)/4300W.labeled.txt
-	cp $(TMP)/4300W.labeled.txt $(LABELED_CLUE_CORPUS)
-
 # construct word vectors for clueweb
-c_word2vec:
+d_word2vec:
 	shuf $(CLUE_CORPUS) > $(TMP)/4300W.raw.txt
 	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.raw.txt -output $(TMP)/4300W.skip.vectors.txt -cbow 0 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 0
 	cp $(TMP)/4300W.skip.vectors.txt $(CLUE_SKIP_WORD_VECTOR)
 	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.raw.txt -output $(TMP)/4300W.cbow.vectors.txt -cbow 1 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 0
 	cp $(TMP)/4300W.cbow.vectors.txt $(CLUE_CBOW_WORD_VECTOR)
-
-# construct sentence & word vectors for clueweb
-c_sent_word2vec:
-	shuf $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.labeled.txt
-	time $(WORD2VEC)/word2vec -train $(TMP)/4300W.labeled.txt -output $(TMP)/4300W.sent.vectors.txt -cbow 0 -size 400 -window 10 -negative 5 -hs 1 -sample 1e-3 -threads 24 -binary 0 -iter 20 -min-count 1 -sentence-vectors 1
-
-
-# extract desired vectors to files
-c_sent_extract:
-	grep '^@@SSENT' $(TMP)/4300W.sent.vectors.txt | sort > $(CLUE_SENT_VECTOR)
-	cat $(TMP)/4300W.sent.vectors.txt | sed '1d' | grep -v '^@@S' > $(CLUE_WORD_VECTOR)
-
-c_preprocess:
-	grep '^@@SSENT' $(LABELED_CLUE_CORPUS) > $(TMP)/4300W.filtered.txt
-	python3 $(DISAMBIG_PRG)/utility/connective/preprocess.py --input $(TMP)/4300W.filtered.txt --output $(CNNCT_CORPUS)
 
 d_convert_cdtb_encoding:
 	python3 $(DISAMBIG_PRG)/utility/common/gb_to_utf8.py --input $(CDTB_RAW_GB_DIR) --output $(CDTB_RAW_DIR)
@@ -127,10 +84,11 @@ d_extract_cdtb_linkage:
 # generate parser structure
 # first stripped labels
 d_parse_cdtb:
-	$(DISAMBIG_TOOL)/stanford-parser-full/lexparser-lang.sh Chinese 500 edu/stanford/nlp/models/lexparser/chinesePCFG.ser.gz parsed $(DISAMBIG_DATA)/cdtb.stripped.txt
+	cut -f2 $(LCORPUS_FILE) > $(VTMP)/cdtb.stripped.txt
+	$(DISAMBIG_TOOL)/stanford-parser-full/lexparser-lang.sh Chinese 500 edu/stanford/nlp/models/lexparser/chinesePCFG.ser.gz parsed $(VTMP)/cdtb.stripped.txt
 # then concate labels again
 d_process_cdtb_parsed:
-	python3 $(DISAMBIG_PRG)/utility/common/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(DISAMBIG_DATA)/cdtb.stripped.txt.parsed.500.stp --output $(TMP)/cdtb.parsed.txt
+	python3 $(DISAMBIG_PRG)/utility/common/align_parser.py --corpus $(LCORPUS_FILE) --parsed $(VTMP)/cdtb.stripped.txt.parsed.500.stp --output $(DISAMBIG_DATA)/parsed/cdtb.parsed.txt
 
 # generate folds
 d_make_folds:
@@ -141,28 +99,17 @@ d_filter_vectors:
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(GGLOVE_VECTOR_FILE) --corpus_pos $(LCORPUS_POS_FILE) --output $(LVECTOR_FILE)
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_CBOW_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LCBOW_FILE)
 	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_SKIP_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LSKIP_FILE)
-	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_SKIP_NP_VECTOR) --corpus_pos $(LCORPUS_FILE) --output $(LSKIP_NP_FILE)
-
-# filter word2vec vectors
-d_filter_w2v_vectors:
-	python3 $(DISAMBIG_PRG)/utility/linkage/filter_vectors.py --vectors $(CLUE_WORD_VECTOR) --corpus_pos $(LCORPUS_POS_FILE) --output $(LW2V_VECTOR_FILE)
 
 d_dep_parse:
 	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/dep_parse.py --corpus $(LCORPUS_FILE) --input $(TMP)/NONE --label $(TMP)/labels.txt --output $(TMP)/tmp.txt preprocess
 	java -Xmx"60g" -cp "$(CLASSPATH)":"$(NLPPARSER)/*" edu.stanford.nlp.parser.lexparser.LexicalizedParser -maxLength 600 -tLPP edu.stanford.nlp.parser.lexparser.ChineseTreebankParserParams -chineseFactored -encoding UTF-8 -tokenized -sentences newline -escaper edu.stanford.nlp.trees.international.pennchinese.ChineseEscaper -writeOutputFiles -outputFormat "typedDependencies" -outputFormatOptions "removeTopBracket,includePunctuationDependencies" -loadFromSerializedFile edu/stanford/nlp/models/lexparser/chineseFactored.ser.gz $(TMP)/tmp.txt
 	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/dep_parse.py --corpus $(LCORPUS_FILE) --label $(TMP)/labels.txt --input $(TMP)/tmp.txt.stp --output $(LCORPUS_DEP_FILE) postprocess
 
-## -- connective experiments -- ##
-
-c_experiment:
-	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/connective/experiment.py --corpus $(CNNCT_CORPUS) --output $(TMP)/test.txt # --train $(LIBSVM_TRAIN) --scale $(LIBSVM_SCALE)
-
 ## -- linkage experiments -- ##
 
 LCNNCT_FILE = $(DISAMBIG_DATA)/connectives-simple/cdt_cdtb.txt
 LCORPUS_POS_FILE = $(DISAMBIG_DATA)/raw_corpus/cdtb.pos.txt
 LCORPUS_PARSE_FILE = $(DISAMBIG_DATA)/parsed/cdtb.parsed.txt
-LW2V_VECTOR_FILE = $(DISAMBIG_DATA)/linkage/cdtb_w2v_vectors.txt
 LWORD_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_features.txt
 LWORD_PFEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_perfect_word_features.txt
 LWORD_PROB_FILE = $(DISAMBIG_DATA)/linkage/cdtb_word_probs.txt
@@ -174,7 +121,6 @@ LLINKAGE_PCLASS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_class.txt
 LLINKAGE_FEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_features.txt
 LLINKAGE_PFEATURE_FILE = $(DISAMBIG_DATA)/linkage/cdtb_linkage_perfect_features.txt
 LFOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
-L10FOLDS_FILE = $(DISAMBIG_DATA)/linkage/cdtb_10folds.txt
 LLINKING_FILE = $(DISAMBIG_DATA)/connective/ntu_connective_linking.txt
 LCOUNT_FILE = $(DISAMBIG_DATA)/linkage/word_count.txt
 LCNNCT_COUNT_FILE = $(DISAMBIG_DATA)/linkage/cnnct_count.txt
