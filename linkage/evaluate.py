@@ -1,3 +1,4 @@
+"""routines for evaluation and display"""
 import numpy as np
 
 from collections import defaultdict
@@ -363,11 +364,9 @@ class WordAmbig(object):
         return total
 
 
-class ArgStats(object):
-    pass
-
-
 class FoldStats(object):
+
+    """Compute scores for each fold and output average"""
 
     def __init__(self, threshold=0.5, show_fold=False, label=None):
         self.stats = defaultdict(int)

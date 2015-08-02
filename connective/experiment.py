@@ -1,3 +1,9 @@
+"""
+connective experiments
+
+connective disambiguation for ambiguous connectives extracted
+from large corpus
+"""
 import argparse
 
 import numpy as np

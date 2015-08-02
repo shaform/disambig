@@ -1,4 +1,4 @@
-"""Train word probs"""
+"""Train connective component probs"""
 import argparse
 
 import corpus

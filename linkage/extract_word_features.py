@@ -1,4 +1,4 @@
-"""Extract features for words in corpus"""
+"""Extract features for connective components in corpus"""
 import argparse
 import re
 

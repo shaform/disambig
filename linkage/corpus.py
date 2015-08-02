@@ -9,6 +9,7 @@ from nltk.tree import ParentedTree
 
 
 def load_linking(path):
+    """load linking direction dictionary for each component"""
     link = defaultdict(set)
     with open(path) as f:
         for l in f:
@@ -36,10 +37,13 @@ def preprocess_dep_entry(l):
 
 
 def postprocess_dep_entry(entries):
+    """split each dependency parse by @@@@"""
     return [set(entry.split('@@@@')) for entry in entries]
 
 
 class CorpusFile(object):
+
+    """tokens, POS, parse tree, dependency parse for each paragraph"""
 
     def __init__(self, corpus_path, pos_path=None, parse_path=None,
                  dep_path=None):
@@ -68,6 +72,7 @@ class CorpusFile(object):
                 assert(len(dp) == len(self.edu_corpus[l]))
 
     def EDUs(self, label, tokens=None):
+        """get text for segments"""
         if tokens is None:
             tokens = self.corpus[label]
         edu = self.edu_corpus[label]
@@ -127,19 +132,23 @@ class FoldsHelper(object):
                 self.data_folds[i].add(plabel)
 
     def folds(self):
+        """return fold numbers"""
         return sorted(self.data_folds)
 
     def train_set(self, fold):
+        """get train set for a fold number"""
         for key, s in sorted(self.data_folds.items()):
             if key != fold:
                 yield from sorted(s)
 
     def test_set(self, fold):
+        """get test set for a fold number"""
         for key, s in sorted(self.data_folds.items()):
             if key == fold:
                 yield from sorted(s)
 
     def features(self, data_set, feature_tbl, extend=0):
+        """get features for a fold number"""
         labels = []
         X = []
         Y = []
@@ -163,10 +172,14 @@ class ParseHelper(object):
 
     @staticmethod
     def parse(s):
+        """get parse tree from Stanford parse string"""
         return ParentedTree.fromstring(s)
 
     @staticmethod
     def self_category(root, indices, exact=True, positions=False):
+        """
+        exact: must dominate exactly the indices, otherwise can dominate additional tokens
+        """
         l = min(indices)
         r = max(indices) + 1
         position = root.treeposition_spanning_leaves(l, r)

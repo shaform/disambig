@@ -1,4 +1,4 @@
-"""Main program for linkage experiments"""
+"""Main program for linking resolution experiments"""
 import argparse
 
 import corpus
@@ -699,19 +699,6 @@ def main():
 
     word_ambig = evaluate.WordAmbig(args.word_ambig)
 
-    '''
-    print('score model')
-    cross_validation(
-        corpus_file,
-        fhelper,
-        truth,
-        detector,
-        linkage_counts,
-        linkage_probs,
-        word_ambig,
-        cut=lambda x, y: linkage_probs[x] < 0.7)
-    '''
-
     ranking_probs = compute_ranking_probs(linkage_probs)
 
     if args.perfect:
@@ -719,6 +706,7 @@ def main():
     else:
         cut = lambda x, _: linkage_class[x] < args.threshold
 
+    # The B2 model
     print('===== ranking model =====')
     cross_validation(
         corpus_file,
@@ -746,6 +734,8 @@ def main():
         # cut by word probs
         cut = lambda x, _: any(
             word_probs[(x[0], w)] < args.threshold for w in x[1])  # or linkage_class[x] < args.threshold
+
+        # The B1 model
         print('\n===== pipeline model =====')
         cross_validation(
             corpus_file,

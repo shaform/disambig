@@ -1,3 +1,4 @@
+"""Routines for connective annotations"""
 import re
 
 from collections import defaultdict
