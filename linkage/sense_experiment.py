@@ -1,4 +1,4 @@
-"""linkage sense experiments"""
+"""connective sense experiments"""
 import argparse
 
 import numpy as np
@@ -18,6 +18,7 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 
+# hack: filter types that have less than 10 instances
 NOT_COUNTED = (1, 5, 16)
 
 TRANS = {}
@@ -44,6 +45,7 @@ def process_commands():
 
 
 def extract_indices(lst, indices):
+    """get items from lst of given indices"""
     extracted = []
     for i in indices:
         extracted.append(lst[i])

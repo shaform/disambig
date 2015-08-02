@@ -31,14 +31,18 @@ def process_commands():
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
     parser.add_argument('--classifier', default='LR',
+                        help='the classifier to use',
                         choices=('SVM', 'DT', 'NB', 'LR', 'RF', 'LSVM'))
 
     return parser.parse_args()
 
+# store the classifier for use
 global_classifier = {'key': None}
 
 
 class LogisticRegressor():
+
+    """Output probability for LogisticRegression"""
 
     def __init__(self):
         self.lr = LogisticRegression()
@@ -145,6 +149,7 @@ def output_file(path, word_probs):
 def main():
     args = process_commands()
 
+    # choose a classifier
     if args.classifier == 'SVM':
         global_classifier['key'] = SVC
     elif args.classifier == 'DT':

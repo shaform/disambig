@@ -42,12 +42,15 @@ def process_commands():
     parser.add_argument('--check_accuracy', action='store_true',
                         help='use svm to check classification accuracy')
     parser.add_argument('--classifier', default='LR',
+                        help='the classifier to use',
                         choices=('SVM', 'DT', 'NB', 'LR', 'RF', 'LSVM'))
 
     return parser.parse_args()
 
 
 class LogisticRegressor():
+
+    """Output probability for LogisticRegression"""
 
     def __init__(self):
         self.lr = LogisticRegression()
@@ -67,6 +70,7 @@ def predict(args):
     print('completed training linkage probability for fold', i, '...')
     return Yt
 
+# store the classifier for use
 global_classifier = {'key': None}
 
 
@@ -206,6 +210,7 @@ def main():
     train_classify = args.output_classify is not None
     assert(train_prob or train_classify)
 
+    # choose a classifier
     if args.classifier == 'SVM':
         global_classifier['key'] = SVC
     elif args.classifier == 'DT':

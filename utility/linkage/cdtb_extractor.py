@@ -36,7 +36,7 @@ def split_dot(text):
 
 
 def get_offsets(text):
-    '''get [) offsets'''
+    """get [) offsets"""
     x, y = split_dot(text)
     return int(x) - 1, int(y)
 
@@ -67,7 +67,7 @@ def get_sents(r):
 
 
 def check_indices(article, texts, indices):
-    '''check indices correctness'''
+    """check indices correctness"""
 
     correct = True
     if len(indices) != len(texts):

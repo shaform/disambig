@@ -340,6 +340,11 @@ class WordCount(object):
         return total
 
 
+# Originally WordAmbig is used for error analysis
+# by linking ambiguity of connective components.
+# But the analysis is no longer used.
+# Some evaluation routines use this object to count the number of candidates.
+# Such hack should be removed in the future.
 class WordAmbig(object):
 
     def __init__(self, path):
@@ -453,7 +458,7 @@ class FoldStats(object):
         print_scores(recall, prec, fscore=fscore, accuracy=accuracy)
 
     def print_distribution(self, ambig, function=lambda x: x):
-        '''Display correct word distribution by ambiguity'''
+        """Display correct word distribution by ambiguity"""
         print('Answer distribution by ambiguity of words:')
         d = defaultdict(int)
         t = defaultdict(int)

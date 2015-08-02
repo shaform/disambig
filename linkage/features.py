@@ -12,6 +12,7 @@ from sklearn import preprocessing
 
 
 def geometric_dists_mean(token_indices_list):
+    """compute geometric mean for distances between connective components"""
     dists = list(word_dists(token_indices_list))
     return geometric_mean(dists)
 
@@ -42,6 +43,11 @@ def num_of_sentences(tokens):
 
 
 def lr_boundary(left, right, tokens):
+    """
+    compute distances to the left and right boundary
+    (separating symbols or paragraph boundary)
+    from the interval [left, right]
+    """
 
     for l_offset in range(1, len(tokens) + 1):
         left -= 1
@@ -57,6 +63,7 @@ def lr_boundary(left, right, tokens):
 
 
 def min_boundary(left, right, tokens):
+    """compute minimal distance to the left or right boundary from the interval [left, right]"""
     offset = 0
     while True:
         offset += 1
@@ -69,16 +76,8 @@ def min_boundary(left, right, tokens):
             return offset
 
 
-def word_skips(token_indices_list, tokens):
-    for a, b in zip(token_indices_list, token_indices_list[1:]):
-        d = 0
-        for i in range(a[-1] + 1, b[0]):
-            if _rB.search(tokens[i]) is not None:
-                d += 1
-        yield d
-
-
 def word_dists(token_indices_list):
+    """compute distances between connective components"""
     for a, b in zip(token_indices_list, token_indices_list[1:]):
         d = b[0] - a[-1]
         if d < 0:
@@ -91,6 +90,7 @@ def token_offsets(indices):
 
 
 def word_offsets(token_indices):
+    """get left, right offset for a connective"""
     return token_indices[0][0], token_indices[-1][-1]
 
 
