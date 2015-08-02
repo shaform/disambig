@@ -1,4 +1,8 @@
-"""linkage argument experiments"""
+"""
+argument identification experiments
+
+detect argument boundaries for each connective
+"""
 import argparse
 import re
 import subprocess
@@ -16,6 +20,10 @@ from collections import defaultdict
 
 class Predictor(object):
 
+    """
+    Write temporary text files and call CRFsuite for sequence labeling.
+    """
+
     def __init__(self, crf_path, model_path, train_path, test_path):
         self.crf = crf_path
         self.model_path = model_path
@@ -31,6 +39,7 @@ class Predictor(object):
             )
 
     def train(self, i, crf_data, crf_ranges):
+        """call CRFsuite to train a model"""
         mpath = '{}.{}'.format(self.model_path, i)
         path = '{}.{}'.format(self.train_path, i)
 
@@ -40,6 +49,7 @@ class Predictor(object):
                                 stdout=subprocess.DEVNULL)
 
     def test(self, i, crf_data, crf_ranges, wait=False):
+        """call CRFsuite to predict a file"""
         mpath = '{}.{}'.format(self.model_path, i)
         path = '{}.{}'.format(self.test_path, i)
 
@@ -103,19 +113,30 @@ def process_commands():
                         help='syntax-parsed raw corpus file')
     parser.add_argument('--corpus_dep', required=True,
                         help='dep-parsed corpus file')
-    parser.add_argument('--linking', required=True)
-    parser.add_argument('--bounded', type=int)
+    parser.add_argument('--linking',
+                        help='linking directions for each connective component',
+                        required=True)
     parser.add_argument('--folds', required=True,
                         help='cross validation folds distribution file')
     parser.add_argument('--log', required=True,
                         help='log file to output error analysis')
-    parser.add_argument('--crfsuite', required=True)
-    parser.add_argument('--train', required=True)
-    parser.add_argument('--test', required=True)
-    parser.add_argument('--model', required=True)
-    parser.add_argument('--keep_boundary', action='store_true')
-    parser.add_argument('--hierarchy_ranges', action='store_true')
-    parser.add_argument('--hierarchy_adjust', action='store_true')
+    parser.add_argument('--crfsuite',
+                        help='path for crfsuite',
+                        required=True)
+    parser.add_argument('--train',
+                        help='path for temporary train file',
+                        required=True)
+    parser.add_argument('--test',
+                        help='path for temporary test file',
+                        required=True)
+    parser.add_argument('--model',
+                        help='path for temporary crf model file',
+                        required=True)
+    parser.add_argument('--keep_boundary', action='store_true',
+                        help='execute the experiments when '
+                        'the argument intervals are known, '
+                        'i.e., the first and the last argument boundary '
+                        'are known')
     parser.add_argument('--use_baseline', action='store_true')
     parser.add_argument('--select',
                         help='only select a feature set',
@@ -124,6 +145,7 @@ def process_commands():
                         help='reverse selection',
                         action='store_true')
     parser.add_argument('--rstats',
+                        help='error analysis for error cases',
                         action='store_true')
 
     return parser.parse_args()
@@ -143,6 +165,7 @@ def extract_features(corpus_file, linkings, arguments, test_arguments,
         deps = corpus_file.dep_corpus[l]
         EDUs = corpus_file.edu_corpus[l]
 
+        # get features for test sets
         for arg in test_arguments.arguments(l):
             a_indices = arguments.get_a_indices(l, arg)
             arg = list(arg)
@@ -154,6 +177,7 @@ def extract_features(corpus_file, linkings, arguments, test_arguments,
                                          reverse_select=reverse_select)
             test_set[l].append((c_indices, cEDU, tlabels, tfeatures))
 
+        # get features for train sets
         for arg in arguments.arguments(l):
             c_indices, cEDU, tlabels, tfeatures = argument.extract_EDU_features(
                 EDUs, tokens, pos_tokens, parsed, deps, linkings, arg)
@@ -183,28 +207,6 @@ def get_ranges(crf_data):
         except:
             end = len(labels)
         ranges.append([(start, end)])
-    return ranges
-
-
-def get_bounded_ranges(crf_data, bounded=None):
-    if bounded is None:
-        return None
-
-    ranges = []
-    for _, _, cEDU, labels, _ in crf_data:
-        start = max(0, min(cEDU) - bounded)
-        end = min(len(labels), max(cEDU) + 1 + bounded)
-        rs = [(start, end)]
-
-        ranges.append(rs)
-    return ranges
-
-
-def get_hierarchy_ranges(crf_data, edu_spans):
-    ranges = []
-    for l, c_indices, _, _, _ in crf_data:
-        rs = edu_spans[l][c_indices]
-        ranges.append(rs)
     return ranges
 
 
@@ -334,36 +336,11 @@ def log_error(log, true_span, predict_span, item, corpus_file, *,
                 stats['right true > predict', len(c_indices)] += 1
 
 
-def rule_based(arg_spans, crf_data, corpus_file):
-    for arg_span, cdata in zip(arg_spans, crf_data):
-        if len(arg_span) == 0:
-            continue
-
-        if len(arg_span) == 1:
-            arg_span.clear()
-            continue
-
-        # l, c_indices, cEDU, tlabels, tfeatures = cdata
-        # edus = corpus_file.EDUs(l)
-        # start, end = max(arg_span)
-        # if end == len(edus) - 1 and min(arg_span)[0] <= 1:
-        #     if edus[end].endswith('。') and edus[end - 1].endswith('，'):
-        #         arg_span.remove((start, end))
-        #         arg_span.add((start, end + 1))
-
-    for arg_span in arg_spans:
-        assert(len(arg_span) != 1)
-
-    return arg_spans
-
-
 def test(fhelper, train_args, test_args, corpus_file,
          linkings,
          train_path, test_path, model_path, crf,
          log_path,
-         bounded=None,
-         keep_boundary=False, hierarchy_ranges=False,
-         hierarchy_adjust=False,
+         keep_boundary=False,
          use_baseline=False,
          use_feature=None,
          reverse_select=False,
@@ -383,10 +360,8 @@ def test(fhelper, train_args, test_args, corpus_file,
         crf_data = extract_crf_data(fhelper.train_set(i), data_set)
         if keep_boundary:
             crf_ranges = get_ranges(crf_data)
-        elif hierarchy_ranges:
-            crf_ranges = get_hierarchy_ranges(crf_data, train_args.edu_spans)
         else:
-            crf_ranges = get_bounded_ranges(crf_data, bounded)
+            crf_ranges = None
         test_crf_data.append(extract_crf_data(fhelper.test_set(i), test_set))
 
         processes.append(predictor.train(i, crf_data, crf_ranges))
@@ -402,8 +377,7 @@ def test(fhelper, train_args, test_args, corpus_file,
     if keep_boundary:
         test_crf_ranges = [get_ranges(crf_data) for crf_data in test_crf_data]
     else:
-        test_crf_ranges = [get_bounded_ranges(crf_data, bounded)
-                           for crf_data in test_crf_data]
+        test_crf_ranges = [None for crf_data in test_crf_data]
 
     for i in fhelper.folds():
         processes.append(
@@ -420,16 +394,6 @@ def test(fhelper, train_args, test_args, corpus_file,
         preds.append(arg_spans)
         pred_probs.append(probs)
 
-    # if not keep_boundary and hierarchy_adjust:
-    #    for i, crf_data, pds, probs in zip(fhelper.folds(),
-    #                                       test_crf_data,
-    #                                       preds,
-    #                                       pred_probs):
-    #        handle_hierarchy_adjust(crf_data, pds, probs, i, predictor)
-
-    # for arg_spans, crf_data in zip(preds, test_crf_data):
-    #    arg_spans = rule_based(arg_spans, crf_data, corpus_file)
-
     # evaluation
     cv_stats = defaultdict(list)
     log_stats = defaultdict(int)
@@ -440,27 +404,6 @@ def test(fhelper, train_args, test_args, corpus_file,
             correct = 0
             tp = fp = total = 0
             i_tp = i_fp = i_total = 0
-            ''' use each arg to evaluate
-            for arg_span, item in zip(pds, crf_data):
-                s = train_args.edu_truth[item[0]][item[1]]
-                log_error(log_out, s, arg_span, item, corpus_file,
-                          stats=log_stats)
-                tp += len(s & arg_span)
-                fp += len(arg_span - s)
-                if s == arg_span:
-                    correct += 1
-                    if len(s) > 0:
-                        i_tp += 1
-                elif len(arg_span) > 0:
-                    i_fp += 1
-
-            for l in fhelper.test_set(i):
-                d = train_args.edu_truth[l]
-                for s in d.values():
-                    total += len(s)
-                    if len(s) > 0:
-                        i_total += 1
-            '''
 
             for arg_span, item in zip(pds, crf_data):
                 label, cindices, *_ = item
@@ -652,125 +595,6 @@ def test(fhelper, train_args, test_args, corpus_file,
         evaluate.print_counts(r_stats)
 
 
-def pop_max(items, probs):
-    max_idx = items[0]
-    maxi = 0
-    maxp = probs[max_idx]
-    for i, idx in enumerate(items):
-        if probs[idx] > maxp:
-            maxp = probs[idx]
-            max_idx = idx
-            maxi = i
-    items.pop(maxi)
-    return max_idx
-
-
-def get_items(items, lst):
-    elems = []
-    for i in items:
-        elems.append(lst[i])
-    return elems
-
-
-def get_pred_span(pd):
-    return min(pd)[0], max(pd)[-1]
-
-
-def is_inner(cEDUs, pd, start, end, outer):
-    if len(pd) == 0:
-        return None
-    # check if span is less than item
-    i_start, i_end = get_pred_span(pd)
-    if i_end - i_start >= end - start:
-        return None
-
-    # check if connectives are inside of an argument
-    for a_start, a_end in outer:
-        if all(a_start <= i < a_end for i in cEDUs):
-            # check if it exceed the span
-            if i_start < a_start or i_end > a_end:
-                return (a_start, a_end)
-            else:
-                return None
-
-    return None
-
-
-def strip_inner(pd, span):
-    for s, e in list(pd):
-        if e <= span[0] or s >= span[1]:
-            pd.remove((s, e))
-        else:
-            if s < span[0]:
-                pd.remove((s, e))
-                s = span[0]
-                pd.add((s, e))
-            if e > span[1]:
-                pd.remove((s, e))
-                pd.add((s, span[1]))
-
-
-def strip_outer(pd, span):
-    for s, e in list(pd):
-        if s > span[0] and e <= span[1]:
-            pd.remove((s, e))
-        else:
-            if span[0] < s < span[1]:
-                pd.remove((s, e))
-                pd.add((span[1], e))
-            elif span[0] < e < span[1]:
-                pd.remove((s, e))
-                pd.add((s, span[1]))
-
-
-def repredict_inner(pd, span, cd, fold, predictor):
-    p = predictor.test(fold, [cd], [[span]], wait=True)
-    arg_spans, probs = load_predict(p.stdout, [[span]])
-    assert(len(arg_spans) == 1)
-    assert(len(probs) == 1)
-    pd.clear()
-    pd.update(arg_spans[0])
-    return probs[0]
-
-
-def reduce_inner(item, preds, cds, items, probs, fold, predictor):
-    start, end = get_pred_span(item)
-    for pd, cd, j in zip(preds, cds, items):
-        cEDUs = cd[2]
-        span = is_inner(cEDUs, pd, start, end, item)
-        if span is not None:
-            strip_inner(pd, span)
-            # pr = repredict_inner(pd, span, cd, fold, predictor)
-            # if pr is not None:
-            #     probs[j] = pr
-
-
-def reduce_outer(item, preds):
-    start, end = get_pred_span(item)
-    for pd in preds:
-        o_start, o_end = get_pred_span(pd)
-        if o_start <= start and o_end >= end:
-            strip_outer(pd, (start, end))
-
-
-def handle_hierarchy_adjust(crf_data, preds, probs, fold, predictor):
-    instances = defaultdict(list)
-    for i, item in enumerate(crf_data):
-        instances[item[0]].append(i)
-
-    for items in instances.values():
-        while len(items) > 0:
-            idx = pop_max(items, probs)
-            if len(preds[idx]) == 0:
-                continue
-            pds = get_items(items, preds)
-            cds = get_items(items, crf_data)
-            reduce_inner(
-                preds[idx], pds, cds, items, probs, fold, predictor)
-            # reduce_outer(
-            #     preds[idx], pds)
-
-
 def main():
     args = process_commands()
     linkings = corpus.load_linking(args.linking)
@@ -788,8 +612,7 @@ def main():
          linkings,
          args.train, args.test, args.model, args.crfsuite,
          args.log,
-         args.bounded,
-         keep_boundary, args.hierarchy_ranges, args.hierarchy_adjust,
+         keep_boundary,
          use_baseline=args.use_baseline,
          use_feature=args.select,
          reverse_select=args.reverse_select,

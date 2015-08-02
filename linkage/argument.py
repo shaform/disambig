@@ -1,3 +1,4 @@
+"""utility for argument experiments"""
 import corpus
 import linkage
 
@@ -9,6 +10,10 @@ _BEFORE, _BEGIN, _INSIDE, _AFTER = range(4)
 
 
 def cEDU_to_labels(cEDU, labels):
+    """label a segment sequence by connective positions only"""
+
+    # put a boundary at the beginning of each connective component
+    # and at the ending of the last component
     start = min(cEDU)
     end = max(cEDU)
     for i, l in enumerate(labels):
@@ -21,6 +26,7 @@ def cEDU_to_labels(cEDU, labels):
         else:
             labels[i] = _INSIDE
 
+    # add an additional argument when only one argument is extracted
     if start == end:
         if end < len(labels) - 1:
             labels[end + 1] = _BEGIN
@@ -34,6 +40,10 @@ def is_argument_label(l):
 
 
 def get_argument_offsets(arg_indices):
+    """
+    get a list of offsets for all arguments
+    the offsets must span over a continuous interval
+    """
     offsets = []
     for indices in arg_indices:
         for i, idx in enumerate(indices):
@@ -46,6 +56,7 @@ def get_argument_offsets(arg_indices):
 
 
 def get_EDU_offsets(tokens):
+    """get a list of offsets for all segments"""
     start = 0
     tlen = len(tokens)
     offsets = []
@@ -61,6 +72,7 @@ def get_EDU_offsets(tokens):
 
 
 def get_EDU_labels(EDUs, arg_indices):
+    """get the correct labels for the segments according to the argument indices"""
     labels = []
     if len(arg_indices) == 0:
         return [_BEFORE] * len(EDUs)
@@ -84,6 +96,7 @@ def get_EDU_labels(EDUs, arg_indices):
 
 
 def correct_labels(labels):
+    """remove obvious errors in labeling"""
     stage = 0
     for i, l in enumerate(labels):
         if stage == 0:
@@ -124,6 +137,7 @@ def labels_to_offsets(labels, start=0):
 
 
 def get_end_index(span, tokens):
+    """get the start index of the separating element for the segment"""
     start, end = span
     end -= 1
     while end >= start:
@@ -135,6 +149,7 @@ def get_end_index(span, tokens):
 
 
 def collect_cnnct_positions(c_indices):
+    """get all positions for connective components"""
     start_indices = set()
     end_indices = set()
 
@@ -145,6 +160,7 @@ def collect_cnnct_positions(c_indices):
 
 
 def connective_features(tfeatures, EDUs, c_indices):
+    """connective component features"""
     c_start = c_indices[0][0]
     c_end = c_indices[-1][-1]
     c_start_EDU = None
@@ -158,9 +174,11 @@ def connective_features(tfeatures, EDUs, c_indices):
             c_start_EDU = i
 
     for i, s in enumerate(tfeatures):
+        # if the current segment if before all components
         if i < c_start_EDU:
             s.add('BEFORE_CNNCT')
             s.add('BEFORE_CNNCT-{}'.format(c_start_EDU - i))
+        # if the current segment if after all components
         if i > c_end_EDU:
             s.add('AFTER_CNNCT')
             s.add('AFTER_CNNCT-{}'.format(i - c_end_EDU))
@@ -190,6 +208,7 @@ def path_features(s, parsed, from_pos, to_pos):
 
 
 def extract_dep_features(s, dep, pdep):
+    """whether the current segment contains a subject"""
     psubj = None
     if pdep is not None:
         for item in pdep:
@@ -326,43 +345,6 @@ def check_continuity(labels):
     if is_argument_label(last):
         total_transit += 1
     assert(total_transit == 2 or total_transit == 0)
-
-
-# def extract_features(tokens, pos_tokens, arg):
-#    cnnct, rtype, stype, c_indices, a_indices = arg
-#    tlen = len(tokens)
-#
-#    tfeatures = [set() for _ in range(tlen)]
-#
-#    # set labels
-#    tlabels = ['PRE'] * tlen
-#    for idx in range(a_indices[-1][-1] + 1, tlen):
-#        assert(tlabels[idx] == 'PRE')
-#        tlabels[idx] = 'END'
-#    for indices in a_indices:
-#        for idx in indices:
-#            assert(tlabels[idx] == 'PRE')
-#            tlabels[idx] = 'I'
-#        assert(tlabels[idx] == 'I')
-#        tlabels[indices[0]] = 'B'
-#
-#    # set features
-#    for s in tfeatures:
-#        s.add('CNNCT-' + cnnct)
-#
-#        s.add('RTYPE-{}'.format(rtype))
-#    for lst in c_indices:
-#        for idx in lst:
-#            tfeatures[idx].add('IS_CNNCT')
-#    for i, (s, t, pt) in enumerate(zip(tfeatures, tokens, pos_tokens)):
-#        s.add(t.replace('\\', r'\\').replace(':', r'\:'))
-#        s.add('POS-{}'.format(pt.split('/')[-1]))
-#        if t in _ENDs:
-#            s.add('IS_END')
-#            if i + 1 < tlen:
-#                tfeatures[i + 1].add('PREV_END')
-#
-#    return tlabels, tfeatures
 
 
 def add_offset(offsets, start, end, edu_to_index, append=set.add):
