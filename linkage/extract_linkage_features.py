@@ -265,7 +265,8 @@ def main():
                                            vectors,
                                            truth,
                                            reverse_select=args.reverse_select,
-                                           select=args.select)
+                                           select=args.select,
+                                           select_cnnct=args.select_cnnct)
 
         output_file(args.output, cands, Y, X)
 

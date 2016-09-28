@@ -241,6 +241,21 @@ l_long_linkage_emb_experiments:
 	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LCBOW_FILE),$(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --select GLOVE
 	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --check_accuracy --output_classify $(LLINKAGE_CLASS_FILE)
 
+l_connective_only_linkage_experiments:
+	echo "\n\nfeature experiments for linkages\n\n"
+	echo "\n\nCONNECTIVE\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --select CNNCT --select_cnnct
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --check_accuracy --output_classify $(LLINKAGE_CLASS_FILE)
+	echo "\n\nCONNECTIVE+P&N\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --select PN --select_cnnct
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --check_accuracy --output_classify $(LLINKAGE_CLASS_FILE)
+	echo "\n\nP&N\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --select PN
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --check_accuracy --output_classify $(LLINKAGE_CLASS_FILE)
+	echo "\n\nAll\n\n"
+	python3 $(DISAMBIG_PRG)/linkage/extract_linkage_features.py --connective $(LCNNCT_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --linkage $(LINKAGE_FILE) --vector $(LSKIP_FILE) --folds $(LFOLDS_FILE) --output $(LLINKAGE_FEATURE_FILE) --select_cnnct
+	python3 $(DISAMBIG_PRG)/linkage/train_linkage_probs.py --word_count $(LCOUNT_FILE) --word_ambig $(LWORD_AMBIG_FILE) --linkage_features $(LLINKAGE_FEATURE_FILE) --linkage $(LINKAGE_FILE) --folds $(LFOLDS_FILE) --check_accuracy --output_classify $(LLINKAGE_CLASS_FILE)
+
 l_long_linkage_experiments:
 	echo "\n\nfeature experiments for linkages\n\n"
 	echo "\n\nPN\n\n"
@@ -411,3 +426,7 @@ l_long_arg_experiments:
 	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --linking $(LLINKING_FILE) --log $(TMP)/error_analysis.txt --select CNNCT --reverse_select
 	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --linking $(LLINKING_FILE) --log $(TMP)/error_analysis.txt --select COMP --reverse_select
 	python3 $(DISAMBIG_PRG)/linkage/arg_experiment.py --folds $(LFOLDS_FILE) --corpus $(LCORPUS_FILE) --corpus_pos $(LCORPUS_POS_FILE) --corpus_parse $(LCORPUS_PARSE_FILE) --corpus_dep $(LCORPUS_DEP_FILE) --argument_test $(ARGUMENT_FILE) --argument $(ARGUMENT_FILE) --crfsuite $(CRFSUITE) --train $(TMP)/crftrain.txt --test $(TMP)/crftest.txt --model $(TMP)/crf.model --linking $(LLINKING_FILE) --log $(TMP)/error_analysis.txt
+
+
+cdtb_stats:
+	PYTHONPATH=$(DISAMBIG_PRG)/linkage python3 $(DISAMBIG_PRG)/utility/linkage/cdtb_stats.py --input /nfs/nas-2.1/ysshih/cdtb #--input $(CDTB_RAW_DIR)
