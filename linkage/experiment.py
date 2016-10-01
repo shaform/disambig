@@ -51,6 +51,7 @@ def process_commands():
                         choices=('length', 'score'))
     parser.add_argument('--predict_sense', action='store_true')
     parser.add_argument('--predict_wstats', action='store_true')
+    parser.add_argument('--pipeline', action='store_true')
 
     return parser.parse_args()
 
@@ -707,29 +708,30 @@ def main():
         cut = lambda x, _: linkage_class[x] < args.threshold
 
     # The B2 model
-    print('===== ranking model =====')
-    cross_validation(
-        corpus_file,
-        fhelper,
-        feature_tbl,
-        truth,
-        detector,
-        linkage_counts,
-        lcdict,
-        ranking_probs,
-        word_ambig,
-        cut=cut,
-        words=words,
-        perfect=args.perfect,
-        count_path=args.word_count,
-        arg_output=args.arg_output,
-        greedy=args.greedy,
-        rank=args.rank,
-        predict_sstats=args.predict_sense,
-        predict_wstats=args.predict_wstats,
-    )
+    if not args.pipeline:
+        print('===== ranking model =====')
+        cross_validation(
+            corpus_file,
+            fhelper,
+            feature_tbl,
+            truth,
+            detector,
+            linkage_counts,
+            lcdict,
+            ranking_probs,
+            word_ambig,
+            cut=cut,
+            words=words,
+            perfect=args.perfect,
+            count_path=args.word_count,
+            arg_output=args.arg_output,
+            greedy=args.greedy,
+            rank=args.rank,
+            predict_sstats=args.predict_sense,
+            predict_wstats=args.predict_wstats,
+        )
 
-    if not args.perfect:
+    elif not args.perfect:
         word_probs, word_truth = load_word_probs(args.word_probs)
         # cut by word probs
         cut = lambda x, _: any(
