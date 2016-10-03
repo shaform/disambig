@@ -335,6 +335,15 @@ def log_error(log, true_span, predict_span, item, corpus_file, *,
             if max(max(true_span)) > max(max(predict_span)):
                 stats['right true > predict', len(c_indices)] += 1
 
+def compute_overlap(pd_arg, t_arg):
+    start, end = pd_arg
+    t_start, t_end = t_arg
+
+    tp = max(0, min(end, t_end) - max(start, t_start))
+
+    prec = tp / (end - start)
+    recall = tp / (t_end - t_start)
+    return evaluate.f1(recall, prec)
 
 def test(fhelper, train_args, test_args, corpus_file,
          linkings,
@@ -404,6 +413,7 @@ def test(fhelper, train_args, test_args, corpus_file,
             correct = 0
             tp = fp = total = 0
             i_tp = i_fp = i_total = 0
+            p_i_tp = p_i_fp = 0
 
             for arg_span, item in zip(pds, crf_data):
                 label, cindices, *_ = item
@@ -415,7 +425,6 @@ def test(fhelper, train_args, test_args, corpus_file,
                     if rtype == pd_rtype:
                         s = train_args.edu_truth[label][cindices]
 
-                right_rtype = train_args
                 log_error(log_out, s, arg_span, item, corpus_file,
                           stats=log_stats)
                 truth_boundaries = set()
@@ -440,6 +449,34 @@ def test(fhelper, train_args, test_args, corpus_file,
                         i_tp += 1
                 elif len(arg_span) > 0:
                     i_fp += 1
+
+                # if predicted
+                if len(arg_span) > 0:
+                    partial = False
+
+                    # if num of args the same
+                    if len(s) == len(arg_span):
+                        partial = True
+
+                        # check if any violation
+
+                        EDU_offsets = corpus_file.edu_corpus[label]
+                        for pd_arg, t_arg in zip(sorted(arg_span), sorted(s)):
+                            start = EDU_offsets[pd_arg[0]][0]
+                            end = EDU_offsets[pd_arg[-1]-1][-1]
+
+                            t_start = EDU_offsets[t_arg[0]][0]
+                            t_end = EDU_offsets[t_arg[-1]-1][-1]
+
+                            if compute_overlap((start, end), (t_start, t_end)) < 0.7:
+                                partial = False
+                                break
+
+                    if partial:
+                        p_i_tp += 1
+                    else:
+                        p_i_fp += 1
+
 
                 if rstats and len(s) > 0:
 
@@ -544,6 +581,7 @@ def test(fhelper, train_args, test_args, corpus_file,
             cv_stats['iTotal'].append(i_total)
             cv_stats['Propose'].append(tp + fp)
             cv_stats['iPropose'].append(i_tp + i_fp)
+            cv_stats['piPropose'].append(p_i_tp + p_i_fp)
 
             accuracy = correct / len(pds) if len(pds) > 0 else 1
             recall = tp / total
@@ -560,6 +598,13 @@ def test(fhelper, train_args, test_args, corpus_file,
             cv_stats['iRecall'].append(recall)
             cv_stats['iPrec'].append(prec)
             cv_stats['iF1'].append(f1)
+
+            recall = p_i_tp / i_total
+            prec = p_i_tp / (p_i_tp + p_i_fp) if (p_i_tp + p_i_fp) > 0 else 1
+            f1 = evaluate.f1(recall, prec)
+            cv_stats['piRecall'].append(recall)
+            cv_stats['piPrec'].append(prec)
+            cv_stats['piF1'].append(f1)
 
     print('prec\trecall\tF1')
     print('{:.2%}\t{:.2%}\t{:.2%}'.format(
@@ -578,16 +623,27 @@ def test(fhelper, train_args, test_args, corpus_file,
         np.mean(cv_stats['iF1']),
         np.mean(cv_stats['Accuracy'])
     ))
+    print('pprec\tprecall\tpF1')
+    print('{:.2%}\t{:.2%}\t{:.2%}'.format(
+        np.mean(cv_stats['piPrec']),
+        np.mean(cv_stats['piRecall']),
+        np.mean(cv_stats['piF1']),
+    ))
     print('Fold Prec', cv_stats['iPrec'])
     print('Fold Recall', cv_stats['iRecall'])
     print('Fold F1', cv_stats['iF1'])
     print('Fold Accuracy', cv_stats['Accuracy'])
+    print('Fold pPrec', cv_stats['piPrec'])
+    print('Fold pRecall', cv_stats['piRecall'])
+    print('Fold pF1', cv_stats['piF1'])
     print('Totally {} arguments for all'.format(sum(cv_stats['Total'])))
     print('Totally {} instances for all'.format(sum(cv_stats['iTotal'])))
     print('Totally {} arguments predicted for all'.format(
         sum(cv_stats['Propose'])))
     print('Totally {} instances predicted for all'.format(
         sum(cv_stats['iPropose'])))
+    print('Totally {} partial instances predicted for all'.format(
+        sum(cv_stats['piPropose'])))
     print('log stats:')
     # evaluate.print_counts(log_stats)
 
