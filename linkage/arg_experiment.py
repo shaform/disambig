@@ -147,6 +147,7 @@ def process_commands():
     parser.add_argument('--rstats',
                         help='error analysis for error cases',
                         action='store_true')
+    parser.add_argument('--threshold', type=float, nargs='+', default=[0.7])
 
     return parser.parse_args()
 
@@ -353,7 +354,8 @@ def test(fhelper, train_args, test_args, corpus_file,
          use_baseline=False,
          use_feature=None,
          reverse_select=False,
-         rstats=False):
+         rstats=False,
+         threshold=[0.7]):
 
     train_args.init_truth(corpus_file)
     data_set, test_set = extract_features(corpus_file,
@@ -413,7 +415,8 @@ def test(fhelper, train_args, test_args, corpus_file,
             correct = 0
             tp = fp = total = 0
             i_tp = i_fp = i_total = 0
-            p_i_tp = p_i_fp = 0
+            p_i_tp = [0] * len(threshold)
+            p_i_fp = [0] * len(threshold)
 
             for arg_span, item in zip(pds, crf_data):
                 label, cindices, *_ = item
@@ -452,15 +455,13 @@ def test(fhelper, train_args, test_args, corpus_file,
 
                 # if predicted
                 if len(arg_span) > 0:
-                    partial = False
+                    partial = [False] * len(threshold)
 
                     # if num of args the same
                     if len(s) == len(arg_span):
-                        partial = True
-
-                        # check if any violation
 
                         EDU_offsets = corpus_file.edu_corpus[label]
+                        overlap_scores = []
                         for pd_arg, t_arg in zip(sorted(arg_span), sorted(s)):
                             start = EDU_offsets[pd_arg[0]][0]
                             end = EDU_offsets[pd_arg[-1]-1][-1]
@@ -468,14 +469,17 @@ def test(fhelper, train_args, test_args, corpus_file,
                             t_start = EDU_offsets[t_arg[0]][0]
                             t_end = EDU_offsets[t_arg[-1]-1][-1]
 
-                            if compute_overlap((start, end), (t_start, t_end)) < 0.7:
-                                partial = False
-                                break
+                            overlap_scores.append(compute_overlap((start, end), (t_start, t_end)))
 
-                    if partial:
-                        p_i_tp += 1
-                    else:
-                        p_i_fp += 1
+                        for j, th in enumerate(threshold):
+                            partial[j] = sum(overlap_scores) / len(overlap_scores) >= th
+
+
+                    for j in range(len(threshold)):
+                        if partial[j]:
+                            p_i_tp[j] += 1
+                        else:
+                            p_i_fp[j] += 1
 
 
                 if rstats and len(s) > 0:
@@ -581,7 +585,8 @@ def test(fhelper, train_args, test_args, corpus_file,
             cv_stats['iTotal'].append(i_total)
             cv_stats['Propose'].append(tp + fp)
             cv_stats['iPropose'].append(i_tp + i_fp)
-            cv_stats['piPropose'].append(p_i_tp + p_i_fp)
+            for j in range(len(threshold)):
+                cv_stats['piPropose{}'.format(j)].append(p_i_tp[j] + p_i_fp[j])
 
             accuracy = correct / len(pds) if len(pds) > 0 else 1
             recall = tp / total
@@ -599,12 +604,13 @@ def test(fhelper, train_args, test_args, corpus_file,
             cv_stats['iPrec'].append(prec)
             cv_stats['iF1'].append(f1)
 
-            recall = p_i_tp / i_total
-            prec = p_i_tp / (p_i_tp + p_i_fp) if (p_i_tp + p_i_fp) > 0 else 1
-            f1 = evaluate.f1(recall, prec)
-            cv_stats['piRecall'].append(recall)
-            cv_stats['piPrec'].append(prec)
-            cv_stats['piF1'].append(f1)
+            for j in range(len(threshold)):
+                recall = p_i_tp[j] / i_total
+                prec = p_i_tp[j] / (p_i_tp[j] + p_i_fp[j]) if (p_i_tp[j] + p_i_fp[j]) > 0 else 1
+                f1 = evaluate.f1(recall, prec)
+                cv_stats['piRecall{}'.format(j)].append(recall)
+                cv_stats['piPrec{}'.format(j)].append(prec)
+                cv_stats['piF1{}'.format(j)].append(f1)
 
     print('prec\trecall\tF1')
     print('{:.2%}\t{:.2%}\t{:.2%}'.format(
@@ -623,27 +629,33 @@ def test(fhelper, train_args, test_args, corpus_file,
         np.mean(cv_stats['iF1']),
         np.mean(cv_stats['Accuracy'])
     ))
-    print('pprec\tprecall\tpF1')
-    print('{:.2%}\t{:.2%}\t{:.2%}'.format(
-        np.mean(cv_stats['piPrec']),
-        np.mean(cv_stats['piRecall']),
-        np.mean(cv_stats['piF1']),
-    ))
+    print('pprec\tprecall\tpF1\tthreshold')
+
+    for j, th in enumerate(threshold):
+        print('{:.2%}\t{:.2%}\t{:.2%}\t{}'.format(
+            np.mean(cv_stats['piPrec{}'.format(j)]),
+            np.mean(cv_stats['piRecall{}'.format(j)]),
+            np.mean(cv_stats['piF1{}'.format(j)]),
+            th
+        ))
     print('Fold Prec', cv_stats['iPrec'])
     print('Fold Recall', cv_stats['iRecall'])
     print('Fold F1', cv_stats['iF1'])
     print('Fold Accuracy', cv_stats['Accuracy'])
-    print('Fold pPrec', cv_stats['piPrec'])
-    print('Fold pRecall', cv_stats['piRecall'])
-    print('Fold pF1', cv_stats['piF1'])
     print('Totally {} arguments for all'.format(sum(cv_stats['Total'])))
     print('Totally {} instances for all'.format(sum(cv_stats['iTotal'])))
     print('Totally {} arguments predicted for all'.format(
         sum(cv_stats['Propose'])))
     print('Totally {} instances predicted for all'.format(
         sum(cv_stats['iPropose'])))
-    print('Totally {} partial instances predicted for all'.format(
-        sum(cv_stats['piPropose'])))
+
+    for j, th in enumerate(threshold):
+        print('{} with threshold = {}'.format(j, th))
+        print('Fold pPrec', cv_stats['piPrec{}'.format(j)])
+        print('Fold pRecall', cv_stats['piRecall{}'.format(j)])
+        print('Fold pF1', cv_stats['piF1{}'.format(j)])
+        print('Totally {} partial instances predicted for all'.format(
+            sum(cv_stats['piPropose{}'.format(j)])))
     print('log stats:')
     # evaluate.print_counts(log_stats)
 
@@ -672,7 +684,8 @@ def main():
          use_baseline=args.use_baseline,
          use_feature=args.select,
          reverse_select=args.reverse_select,
-         rstats=args.rstats
+         rstats=args.rstats,
+         threshold=args.threshold
          )
 
 
